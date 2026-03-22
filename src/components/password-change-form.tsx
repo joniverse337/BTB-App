@@ -1,0 +1,157 @@
+'use client'
+
+import { useState } from 'react'
+import { useForm } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
+import { z } from 'zod'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { CheckCircle2, AlertCircle } from 'lucide-react'
+import { createClient } from '@/lib/supabase'
+
+const passwordChangeSchema = z
+  .object({
+    currentPassword: z.string().min(1, 'Aktuelles Passwort ist erforderlich'),
+    newPassword: z.string().min(8, 'Neues Passwort muss mindestens 8 Zeichen haben'),
+    confirmPassword: z.string().min(1, 'Passwort-Bestätigung ist erforderlich'),
+  })
+  .refine((data) => data.newPassword === data.confirmPassword, {
+    message: 'Passwörter stimmen nicht überein',
+    path: ['confirmPassword'],
+  })
+
+type PasswordChangeData = z.infer<typeof passwordChangeSchema>
+
+export function PasswordChangeForm() {
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [successMessage, setSuccessMessage] = useState<string | null>(null)
+  const [errorMessage, setErrorMessage] = useState<string | null>(null)
+
+  const {
+    register,
+    handleSubmit,
+    reset,
+    formState: { errors },
+  } = useForm<PasswordChangeData>({
+    resolver: zodResolver(passwordChangeSchema),
+    defaultValues: {
+      currentPassword: '',
+      newPassword: '',
+      confirmPassword: '',
+    },
+  })
+
+  async function onSubmit(data: PasswordChangeData) {
+    setIsSubmitting(true)
+    setSuccessMessage(null)
+    setErrorMessage(null)
+
+    try {
+      const supabase = createClient()
+
+      // Verify current password by re-authenticating
+      const { data: userData } = await supabase.auth.getUser()
+      if (!userData.user?.email) {
+        setErrorMessage('Benutzer konnte nicht ermittelt werden.')
+        return
+      }
+
+      const { error: signInError } = await supabase.auth.signInWithPassword({
+        email: userData.user.email,
+        password: data.currentPassword,
+      })
+
+      if (signInError) {
+        setErrorMessage('Aktuelles Passwort ist nicht korrekt.')
+        return
+      }
+
+      // Update password
+      const { error: updateError } = await supabase.auth.updateUser({
+        password: data.newPassword,
+      })
+
+      if (updateError) {
+        setErrorMessage('Passwort konnte nicht geändert werden. Bitte versuche es erneut.')
+        return
+      }
+
+      setSuccessMessage('Passwort wurde erfolgreich geändert.')
+      reset()
+    } catch {
+      setErrorMessage('Ein unerwarteter Fehler ist aufgetreten.')
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
+  return (
+    <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 max-w-md">
+      {/* Success message */}
+      {successMessage && (
+        <div className="flex items-center gap-2 rounded-md border border-green-500/30 bg-green-500/10 px-4 py-3 text-sm text-green-400">
+          <CheckCircle2 className="h-4 w-4 shrink-0" />
+          <span>{successMessage}</span>
+        </div>
+      )}
+
+      {/* Error message */}
+      {errorMessage && (
+        <div className="flex items-center gap-2 rounded-md border border-destructive/50 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+          <AlertCircle className="h-4 w-4 shrink-0" />
+          <span>{errorMessage}</span>
+        </div>
+      )}
+
+      <div className="space-y-2">
+        <Label htmlFor="current-password">Aktuelles Passwort</Label>
+        <Input
+          id="current-password"
+          type="password"
+          autoComplete="current-password"
+          placeholder="••••••••"
+          disabled={isSubmitting}
+          {...register('currentPassword')}
+        />
+        {errors.currentPassword && (
+          <p className="text-xs text-destructive">{errors.currentPassword.message}</p>
+        )}
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="new-password">Neues Passwort</Label>
+        <Input
+          id="new-password"
+          type="password"
+          autoComplete="new-password"
+          placeholder="Mindestens 8 Zeichen"
+          disabled={isSubmitting}
+          {...register('newPassword')}
+        />
+        {errors.newPassword && (
+          <p className="text-xs text-destructive">{errors.newPassword.message}</p>
+        )}
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="confirm-password">Neues Passwort bestätigen</Label>
+        <Input
+          id="confirm-password"
+          type="password"
+          autoComplete="new-password"
+          placeholder="Mindestens 8 Zeichen"
+          disabled={isSubmitting}
+          {...register('confirmPassword')}
+        />
+        {errors.confirmPassword && (
+          <p className="text-xs text-destructive">{errors.confirmPassword.message}</p>
+        )}
+      </div>
+
+      <Button type="submit" disabled={isSubmitting} className="font-semibold">
+        {isSubmitting ? 'Wird gespeichert...' : 'Passwort ändern'}
+      </Button>
+    </form>
+  )
+}

@@ -95,7 +95,7 @@ export async function POST(request: Request) {
 
     const { data, error: insertError } = await serviceClient
       .from('companies')
-      .insert({ name, adr: adr || null, code })
+      .insert({ name, adr: adr || null, code, is_active: true })
       .select('id, name, code')
       .single()
 

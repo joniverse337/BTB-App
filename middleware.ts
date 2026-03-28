@@ -33,8 +33,8 @@ export async function middleware(request: NextRequest) {
   const isPublicRoute = publicRoutes.some(route => pathname.startsWith(route))
   const isCallbackRoute = pathname.startsWith('/auth/callback')
 
-  // Rate limit auth pages
-  if (isAuthRoute) {
+  // Rate limit auth pages (POST only — schützt vor Brute-Force, nicht vor normalen Seitenaufrufen)
+  if (isAuthRoute && request.method === 'POST') {
     const ip = request.headers.get('x-forwarded-for')?.split(',')[0].trim()
       ?? request.headers.get('x-real-ip')
       ?? 'unknown'

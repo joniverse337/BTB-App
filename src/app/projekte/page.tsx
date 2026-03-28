@@ -149,9 +149,16 @@ export default function ProjektePage() {
         if (updateError) throw updateError
       } else {
         const { data: { user } } = await supabase.auth.getUser()
+
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('company_id')
+          .eq('user_id', user?.id)
+          .single()
+
         const { error: insertError } = await supabase
           .from('projects')
-          .insert({ ...cleanedData, created_by: user?.id })
+          .insert({ ...cleanedData, created_by: user?.id, company_id: profile?.company_id ?? null })
 
         if (insertError) throw insertError
       }

@@ -251,8 +251,8 @@ export default function LandingPage() {
             </Link>
             <Link
               href="/register"
-              className="text-sm font-semibold transition-colors hover:opacity-80"
-              style={{ color: '#e8c547' }}
+              className="text-sm font-bold rounded-md px-3 py-1.5 transition-opacity hover:opacity-85"
+              style={{ background: '#e8c547', color: '#0e1118' }}
             >
               Kostenlos starten
             </Link>
@@ -289,7 +289,7 @@ export default function LandingPage() {
         ))}
 
         {/* Dark overlay */}
-        <div className="absolute inset-0 bg-black/60" aria-hidden="true" />
+        <div className="absolute inset-0 bg-black/50" aria-hidden="true" />
 
         {/* Content grid */}
         <div className="relative z-10 mx-auto flex w-full max-w-7xl flex-1 flex-col justify-start gap-8 px-4 sm:px-6 lg:flex-row lg:items-start lg:gap-12 pt-4">
@@ -317,10 +317,26 @@ export default function LandingPage() {
               {/* Subtitle — fades on scroll */}
               <p
                 ref={subtitleRef}
-                className="mt-3 text-base text-center leading-relaxed text-white/70 sm:mt-4 sm:text-lg"
+                className="mt-3 text-base text-center leading-relaxed text-white/80 sm:mt-4 sm:text-lg"
               >
-                Deine Baustelle, dein Bautagesbericht.
+                Kein Papier. Kein Excel. Einfach digital.
               </p>
+              <div className="mt-5 flex flex-col sm:flex-row gap-3 w-full justify-center">
+                <Link
+                  href="/register"
+                  className="inline-flex items-center justify-center rounded-lg px-6 py-2.5 text-sm font-bold transition-opacity hover:opacity-85"
+                  style={{ background: '#e8c547', color: '#0e1118' }}
+                >
+                  Kostenlos starten
+                </Link>
+                <Link
+                  href="/login"
+                  className="inline-flex items-center justify-center rounded-lg px-6 py-2.5 text-sm font-medium transition-colors hover:bg-white/10"
+                  style={{ color: 'rgba(255,255,255,0.75)', border: '1px solid rgba(255,255,255,0.2)' }}
+                >
+                  Einloggen
+                </Link>
+              </div>
             </div>
           </div>
 
@@ -406,13 +422,13 @@ export default function LandingPage() {
             {/* Text */}
             <div>
               <p className="text-xs font-semibold uppercase tracking-widest mb-4" style={{ color: '#b8902a', letterSpacing: '0.12em' }}>
-                Das Portal für die Baustelle
+                Das Portal für Bauleiter & Poliere
               </p>
               <h2 className="text-3xl sm:text-4xl font-extrabold mb-5" style={{ fontFamily: "var(--font-inter), sans-serif", color: '#0e1118', lineHeight: 1.15 }}>
-                Schluss mit Excel.<br />btb.online macht es besser.
+                Schluss mit dem Zettelchaos.<br />Berichte digital in Minuten.
               </h2>
               <p className="text-base sm:text-lg leading-relaxed" style={{ color: '#4b5360' }}>
-                Bautagesberichte werden bisher mühsam in Excel-Tabellen zusammengetippt — fehleranfällig, zeitaufwändig, unpraktisch. btb.online ist das cloudbasierte Portal, das diesen Prozess komplett ersetzt: strukturiert, schnell und von überall erreichbar.
+                Bauleiter und Poliere verlieren täglich wertvolle Zeit mit Papierformularen und Excel-Tabellen. btb.online ersetzt diesen Prozess: Trag deine Schicht direkt digital ein — strukturiert, sicher und druckfertig für den Auftraggeber.
               </p>
             </div>
 
@@ -440,9 +456,9 @@ export default function LandingPage() {
           {/* 3 highlight tiles */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
             {([
-              { Icon: FileText, title: 'Digital statt Excel',       desc: 'Kein Herumscrollen in Tabellen mehr. btb.online führt dich strukturiert durch jeden Bericht — schnell, klar, fehlerfrei.' },
-              { Icon: Cloud,    title: 'Immer verfügbar',           desc: 'Cloudbasiert und sicher. Deine Berichte sind jederzeit abrufbar — im Büro, auf der Baustelle oder unterwegs.' },
-              { Icon: Printer,  title: 'Druckfertig mit einem Klick', desc: 'Jeder BTB ist sofort als sauberer DIN-A4-Bericht druckbar — exakt so, wie er auf dem Bildschirm aussieht.' },
+              { Icon: FileText, title: 'Digital statt Excel',       desc: 'Schluss mit leeren Feldern und Flüchtigkeitsfehlern. Die App führt dich Schritt für Schritt strukturiert durch jeden Bericht.' },
+              { Icon: Cloud,    title: 'Immer verfügbar',           desc: 'Deine Berichte sind jederzeit abrufbar — auf der Baustelle, im Büro oder am Abend daheim.' },
+              { Icon: Printer,  title: 'Druckfertig mit einem Klick', desc: 'Ein Klick genügt: Jeder BTB wird als sauberer DIN-A4-Bericht ausgegeben — druckfertig für Auftraggeber und Archiv.' },
             ] as const).map(({ Icon, title, desc }) => (
               <div
                 key={title}
@@ -484,23 +500,28 @@ export default function LandingPage() {
               Funktionen
             </p>
             <h2 className="text-3xl sm:text-4xl font-extrabold text-white" style={{ fontFamily: "var(--font-inter), sans-serif", lineHeight: 1.15 }}>
-              Alles, was du auf der Baustelle brauchst.
+              Alles drin. Nichts zu viel.
             </h2>
+            <p className="mt-4 text-white/55 text-base leading-relaxed">
+              Entwickelt für den Alltag auf der Baustelle — ohne Schulung, ohne Einarbeitung.
+            </p>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
             {([
-              { Icon: ClipboardList, title: 'Bautagesbericht erfassen',    desc: 'Tägliche BTBs strukturiert anlegen — mit Örtlichkeit, Arbeiten, Vorkommnissen und Unterschrift.' },
-              { Icon: Users,         title: 'Personal verwalten',          desc: 'Bauleiter, Poliere, Facharbeiter und weitere Berufsgruppen mit Anzahl und Stunden dokumentieren.' },
-              { Icon: Wrench,        title: 'Geräte & Maschinen',          desc: 'Eingesetzte Maschinen und Geräte per Klick eintragen. Eigene Einträge jederzeit ergänzbar.' },
-              { Icon: CloudSun,      title: 'Wetter & Arbeitszeit',        desc: 'Temperatur, Witterung und Bodenzustand erfassen. Nettostunden werden automatisch berechnet.' },
-              { Icon: FolderOpen,    title: 'Projektverwaltung',           desc: 'Beliebig viele Bauprojekte anlegen — jedes mit eigenem Auftraggeber, Kostenstelle und Zeitraum.' },
-              { Icon: CalendarDays,  title: 'KW-Übersicht',               desc: 'Alle Berichte nach Kalenderwochen sortiert. Schneller Überblick über vergangene und aktuelle Schichten.' },
+              { Icon: ClipboardList, title: 'Bautagesbericht erfassen',    desc: 'Tägliche BTBs anlegen — mit Örtlichkeit, ausgeführten Arbeiten, Vorkommnissen und Unterschrift.' },
+              { Icon: Users,         title: 'Personal verwalten',          desc: 'Bauleiter, Poliere, Facharbeiter per Klick eintragen — Anzahl und Stunden werden sauber dokumentiert.' },
+              { Icon: Wrench,        title: 'Geräte & Maschinen',          desc: 'Eingesetzte Maschinen direkt im Bericht erfassen. Eigene Gerätekategorien jederzeit ergänzbar.' },
+              { Icon: CloudSun,      title: 'Wetter & Arbeitszeit',        desc: 'Temperatur, Witterung und Bodenzustand in Sekunden eingetragen. Nettostunden werden automatisch berechnet.' },
+              { Icon: FolderOpen,    title: 'Projektverwaltung',           desc: 'Mehrere Bauprojekte parallel verwalten — jedes mit eigenem Auftraggeber, Kostenstelle und Zeitraum.' },
+              { Icon: CalendarDays,  title: 'KW-Übersicht',               desc: 'Alle Schichten nach Kalenderwochen sortiert — kein Suchen mehr, immer sofortiger Überblick.' },
             ] as const).map(({ Icon, title, desc }) => (
               <div
                 key={title}
-                className="flex gap-4 rounded-xl p-5 sm:p-6"
+                className="flex gap-4 rounded-xl p-5 sm:p-6 transition-all duration-200"
                 style={{ background: 'rgba(255,255,255,0.025)', border: '1px solid rgba(255,255,255,0.07)' }}
+                onMouseEnter={e => { const el = e.currentTarget as HTMLElement; el.style.background = 'rgba(255,255,255,0.055)'; el.style.border = '1px solid rgba(232,197,71,0.3)' }}
+                onMouseLeave={e => { const el = e.currentTarget as HTMLElement; el.style.background = 'rgba(255,255,255,0.025)'; el.style.border = '1px solid rgba(255,255,255,0.07)' }}
               >
                 <div
                   className="flex items-center justify-center shrink-0"
@@ -510,7 +531,7 @@ export default function LandingPage() {
                 </div>
                 <div className="flex flex-col gap-1.5">
                   <h3 className="font-semibold text-white" style={{ fontSize: '0.9375rem' }}>{title}</h3>
-                  <p className="text-white/45 text-sm leading-relaxed">{desc}</p>
+                  <p className="text-white/60 text-sm leading-relaxed">{desc}</p>
                 </div>
               </div>
             ))}
@@ -588,18 +609,21 @@ export default function LandingPage() {
       <section style={{ background: '#0e1118' }} className="py-24 sm:py-32 border-t border-white/[0.06]">
         <div className="mx-auto max-w-2xl px-4 sm:px-6 text-center">
           <h2 className="text-3xl sm:text-4xl font-extrabold text-white mb-4" style={{ fontFamily: "var(--font-inter), sans-serif", lineHeight: 1.2 }}>
-            Bereit, deinen ersten Bautagesbericht anzulegen?
+            Starte heute.<br />Erster BTB in unter 2 Minuten.
           </h2>
           <p className="text-white/55 text-base sm:text-lg mb-10 leading-relaxed">
-            Kostenlos registrieren — keine Kreditkarte nötig.
+            Kostenlos registrieren — kein Vertrag, keine Kreditkarte.
           </p>
-          <Link
-            href="/register"
-            className="inline-flex items-center gap-2 rounded-lg px-8 py-3.5 text-base font-bold transition-opacity hover:opacity-85"
-            style={{ background: '#e8c547', color: '#0e1118' }}
-          >
-            Jetzt kostenlos starten
-          </Link>
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+            <Link
+              href="/register"
+              className="inline-flex items-center gap-2 rounded-lg px-8 py-3.5 text-base font-bold transition-opacity hover:opacity-85"
+              style={{ background: '#e8c547', color: '#0e1118' }}
+            >
+              Jetzt kostenlos starten
+            </Link>
+            <p className="text-white/35 text-sm">Kein Risiko. Jederzeit kündbar.</p>
+          </div>
         </div>
       </section>
 

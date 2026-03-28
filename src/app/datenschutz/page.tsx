@@ -82,7 +82,7 @@ export default function DatenschutzPage() {
             <p>
               Die App wird über <strong className="text-foreground">Vercel</strong> (Vercel Inc., San Francisco, USA) gehostet.
               Die Datenbank wird von <strong className="text-foreground">Supabase</strong> (Supabase Inc.) betrieben,
-              wobei der Datenbankserver in der <strong className="text-foreground">EU (Frankfurt, Deutschland)</strong> liegt.
+              wobei der Datenbankserver in der <strong className="text-foreground">EU (Irland)</strong> liegt.
             </p>
             <p className="mt-2">
               Vercel nutzt für den EU-Betrieb europäische Rechenzentren. Für USA-Datenübertragungen bestehen

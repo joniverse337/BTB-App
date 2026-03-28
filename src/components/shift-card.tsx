@@ -16,7 +16,7 @@ const inputStyle: React.CSSProperties = {
   border: 'none',
   borderBottom: '1px solid #e8e8e8',
   background: 'transparent',
-  fontFamily: "'IBM Plex Sans', sans-serif",
+  fontFamily: "var(--font-ibm-plex-sans), sans-serif",
   fontSize: '9pt',
   color: '#222',
   outline: 'none',
@@ -103,7 +103,7 @@ function TimeInput({
 
   const cellStyle = (active: boolean): React.CSSProperties => ({
     padding: '3px 0', textAlign: 'center', cursor: 'pointer',
-    fontSize: '9pt', fontFamily: "'IBM Plex Sans', sans-serif",
+    fontSize: '9pt', fontFamily: "var(--font-ibm-plex-sans), sans-serif",
     background: active ? '#1a2040' : 'transparent',
     color: active ? '#fff' : '#333',
     fontWeight: active ? 700 : 400,
@@ -121,7 +121,7 @@ function TimeInput({
         placeholder="HH:MM"
         style={{
           width: '100%', border: 'none', borderBottom: '1px solid #e8e8e8',
-          background: 'transparent', fontFamily: "'IBM Plex Sans', sans-serif",
+          background: 'transparent', fontFamily: "var(--font-ibm-plex-sans), sans-serif",
           fontSize: '9pt', color: '#222', outline: 'none', padding: '1px 2px',
         }}
       />
@@ -216,7 +216,7 @@ function RichTextArea({
           border: '1px solid #e8e8e8',
           borderRadius: '3px',
           background: '#fafafa',
-          fontFamily: "'IBM Plex Sans', sans-serif",
+          fontFamily: "var(--font-ibm-plex-sans), sans-serif",
           fontSize: '9pt',
           color: '#222',
           outline: 'none',
@@ -245,7 +245,7 @@ function RichTextArea({
           background: underlineActive ? '#1a2040' : '#f0f0f0',
           cursor: 'pointer',
           fontSize: '9pt',
-          fontFamily: "'IBM Plex Sans', sans-serif",
+          fontFamily: "var(--font-ibm-plex-sans), sans-serif",
           fontWeight: 700,
           textDecoration: 'underline',
           color: underlineActive ? '#fff' : '#444',
@@ -272,7 +272,7 @@ function WorkerRow({ worker, onUpdate, onDelete }: {
   const [localStd, setLocalStd] = useState<string | null>(null)
   const tdInp: React.CSSProperties = {
     width: '100%', border: 'none', background: 'transparent',
-    fontFamily: "'IBM Plex Sans', sans-serif", fontSize: '9pt', color: '#222',
+    fontFamily: "var(--font-ibm-plex-sans), sans-serif", fontSize: '9pt', color: '#222',
     outline: 'none', padding: '1px 2px', borderBottom: '1px dashed #ddd',
   }
   return (
@@ -309,7 +309,7 @@ function EquipmentRow({ equipment, onUpdate, onDelete }: {
   const [localStd, setLocalStd] = useState<string | null>(null)
   const tdInp: React.CSSProperties = {
     width: '100%', border: 'none', background: 'transparent',
-    fontFamily: "'IBM Plex Sans', sans-serif", fontSize: '9pt', color: '#222',
+    fontFamily: "var(--font-ibm-plex-sans), sans-serif", fontSize: '9pt', color: '#222',
     outline: 'none', padding: '1px 2px', borderBottom: '1px dashed #ddd',
   }
   return (
@@ -424,7 +424,7 @@ export function ShiftCard({
     display: 'inline-flex', alignItems: 'center', padding: '2px 7px',
     background: '#f0f0f0', border: '1px solid #ddd', borderRadius: '10px',
     color: '#555', cursor: 'pointer', fontSize: '9pt',
-    fontFamily: "'IBM Plex Sans', sans-serif",
+    fontFamily: "var(--font-ibm-plex-sans), sans-serif",
   }
 
   const thStyle: React.CSSProperties = {
@@ -436,7 +436,7 @@ export function ShiftCard({
     <div style={{
       width: '210mm', height: '297mm',
       background: '#fff', color: '#222',
-      fontFamily: "'IBM Plex Sans', sans-serif", fontSize: '9pt',
+      fontFamily: "var(--font-ibm-plex-sans), sans-serif", fontSize: '9pt',
       borderRadius: '6px', overflow: 'hidden', position: 'relative',
       boxShadow: '0 4px 20px rgba(0,0,0,.4)',
       border: isNight ? '2px solid rgba(74,124,247,.2)' : '2px solid transparent',
@@ -468,7 +468,7 @@ export function ShiftCard({
           borderBottom: '2.5px solid #1a2040', paddingBottom: '6px', marginBottom: '6px', flexShrink: 0,
         }}>
           <div>
-            <div style={{ fontFamily: "'Syne', sans-serif", fontWeight: 800, fontSize: '15pt', color: '#1a2040' }}>
+            <div style={{ fontFamily: "var(--font-inter), sans-serif", fontWeight: 800, fontSize: '15pt', color: '#1a2040' }}>
               {project?.firm || 'Firmenname'}
             </div>
             {project?.adr && <div style={{ fontSize: '9pt', color: '#666', marginTop: '2px' }}>{project.adr}</div>}
@@ -531,7 +531,7 @@ export function ShiftCard({
                   return (
                     <button key={val} onClick={() => handleTimeBlur('pau', val.toString())} style={{
                       flex: 1, padding: '2px 0', border: '1px solid', borderRadius: '3px',
-                      fontSize: '9pt', fontFamily: "'IBM Plex Sans', sans-serif", cursor: 'pointer',
+                      fontSize: '9pt', fontFamily: "var(--font-ibm-plex-sans), sans-serif", cursor: 'pointer',
                       background: active ? '#1a2040' : '#f5f5f5',
                       color: active ? '#fff' : '#555',
                       borderColor: active ? '#1a2040' : '#ddd',

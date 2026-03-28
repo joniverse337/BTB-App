@@ -12,6 +12,7 @@
 
 | ID | Feature | Status | Spec | Created |
 |----|---------|--------|------|---------|
+| PROJ-0 | Landing Page | In Review | [PROJ-0-landing-page.md](PROJ-0-landing-page.md) | 2026-03-22 |
 | PROJ-1 | Authentifizierung | In Review | [PROJ-1-authentifizierung.md](PROJ-1-authentifizierung.md) | 2026-03-12 |
 | PROJ-2 | Projektverwaltung | In Review | [PROJ-2-projektverwaltung.md](PROJ-2-projektverwaltung.md) | 2026-03-12 |
 | PROJ-3 | Schichtverwaltung & Kartenansicht | In Review | [PROJ-3-schichtverwaltung.md](PROJ-3-schichtverwaltung.md) | 2026-03-12 |

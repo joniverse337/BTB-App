@@ -106,7 +106,7 @@ export async function POST(request: Request) {
         continue // Retry with new code
       }
       return NextResponse.json(
-        { error: `Firma konnte nicht erstellt werden: ${insertError.message}` },
+        { error: 'Firma konnte nicht erstellt werden.' },
         { status: 500 }
       )
     }
@@ -132,7 +132,7 @@ export async function POST(request: Request) {
     // Attempt to clean up the created company
     await serviceClient.from('companies').delete().eq('id', company.id)
     return NextResponse.json(
-      { error: `Firma wurde erstellt, aber die Verknüpfung schlug fehl: ${updateError.message}` },
+      { error: 'Firma konnte nicht verknüpft werden. Bitte versuche es erneut.' },
       { status: 500 }
     )
   }

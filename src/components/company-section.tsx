@@ -42,6 +42,7 @@ import {
   type CreateCompanyData,
   type JoinCompanyData,
 } from '@/lib/validations/company'
+import { toast } from 'sonner'
 import { createClient } from '@/lib/supabase'
 
 interface Company {
@@ -129,7 +130,7 @@ export function CompanySection() {
         body: JSON.stringify(fields),
       })
     } catch {
-      // silent fail for MVP
+      toast.error('Firmendaten konnten nicht gespeichert werden.')
     }
   }, [])
 
@@ -435,6 +436,7 @@ export function CompanySection() {
                   }
                 }}
                 placeholder="Firmenname"
+                maxLength={100}
               />
             </div>
 
@@ -452,6 +454,7 @@ export function CompanySection() {
                   }
                 }}
                 placeholder="Straße, PLZ Ort"
+                maxLength={200}
               />
             </div>
 

@@ -79,6 +79,9 @@ export default function RegisterPage() {
     <div className="min-h-screen flex items-center justify-center px-4">
       <Card className="w-full max-w-sm">
         <CardHeader className="space-y-1">
+          <Link href="/" className="text-xs text-muted-foreground hover:text-foreground transition-colors mb-1 inline-block">
+            ← Zur Startseite
+          </Link>
           <CardTitle className="text-2xl font-bold">
             <span className="text-primary">BTB</span> Registrierung
           </CardTitle>

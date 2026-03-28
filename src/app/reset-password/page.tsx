@@ -39,7 +39,7 @@ export default function ResetPasswordPage() {
       if (error.message.includes('fetch') || error.message.includes('network')) {
         setServerError('Verbindungsfehler, bitte später erneut versuchen.')
       } else {
-        setServerError(error.message)
+        setServerError('Es ist ein Fehler aufgetreten. Bitte versuche es erneut.')
       }
       setIsLoading(false)
       return

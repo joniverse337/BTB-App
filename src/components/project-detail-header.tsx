@@ -22,7 +22,7 @@ export function ProjectDetailHeader({ project, isLoading }: ProjectDetailHeaderP
       }}>
         <Link href="/projekte" style={{ textDecoration: 'none', flexShrink: 0 }}>
           <span style={{
-            fontFamily: "'Syne', sans-serif", fontWeight: 800, fontSize: '20px',
+            fontFamily: "var(--font-inter), sans-serif", fontWeight: 800, fontSize: '20px',
             color: '#e8c547', letterSpacing: '-1px',
           }}>BTB</span>
         </Link>
@@ -32,7 +32,7 @@ export function ProjectDetailHeader({ project, isLoading }: ProjectDetailHeaderP
         ) : project ? (
           <>
             <div style={{
-              fontFamily: "'Syne', sans-serif", fontWeight: 700, fontSize: '18px',
+              fontFamily: "var(--font-inter), sans-serif", fontWeight: 700, fontSize: '18px',
               color: '#dde2f0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
               flex: 1, minWidth: 0,
             }}>

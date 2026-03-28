@@ -28,7 +28,9 @@ function isRateLimited(ip: string): boolean {
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
   const authRoutes = ['/login', '/register', '/reset-password']
+  const publicRoutes = ['/impressum', '/datenschutz']
   const isAuthRoute = authRoutes.some(route => pathname.startsWith(route))
+  const isPublicRoute = publicRoutes.some(route => pathname.startsWith(route))
   const isCallbackRoute = pathname.startsWith('/auth/callback')
 
   // Rate limit auth pages
@@ -89,7 +91,7 @@ export async function middleware(request: NextRequest) {
   }
 
   // Protected routes: not logged in → /login
-  if (!isAuthRoute && !user) {
+  if (!isAuthRoute && !isPublicRoute && !user) {
     return NextResponse.redirect(new URL('/login', request.url))
   }
 

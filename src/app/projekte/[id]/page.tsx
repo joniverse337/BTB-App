@@ -40,7 +40,7 @@ const PRINT_STYLES = `
 body { font-family: 'IBM Plex Sans', sans-serif; font-size: 8.5pt; color: #222; }
 .page { width: 210mm; height: 297mm; padding: 7mm 9mm 22mm 9mm; position: relative; }
 .header { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2.5px solid #1a2040; padding-bottom: 6px; margin-bottom: 6px; }
-.firm { font-family: 'Syne', sans-serif; font-weight: 800; font-size: 14pt; color: #1a2040; }
+.firm { font-family: 'Inter', sans-serif; font-weight: 800; font-size: 14pt; color: #1a2040; }
 .firm-adr { font-size: 7pt; color: #666; margin-top: 2px; }
 .title { font-size: 11pt; font-weight: 700; color: #1a2040; text-transform: uppercase; letter-spacing: 0.5px; }
 .st { font-size: 6.5pt; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; color: #888; border-bottom: 1px solid #ddd; padding-bottom: 2px; margin-bottom: 5px; }
@@ -147,14 +147,14 @@ function buildShiftPageDiv(shift: ShiftWithDetails, date: Date, project: Project
 
   <div class="section">
     <div class="st">Ausgeführte Arbeiten</div>
-    <div class="textarea">${escHtml(shift.arb)}</div>
+    <div class="textarea">${shift.arb || ''}</div>
   </div>
 
   <div class="spacer"></div>
 
   <div class="section">
     <div class="st">Vorkommnisse / Behinderungen</div>
-    <div class="textarea">${escHtml(shift.vor)}</div>
+    <div class="textarea">${shift.vor || ''}</div>
   </div>
 
   <div class="sig">
@@ -172,7 +172,7 @@ function buildShiftPrintHtml(shift: ShiftWithDetails, date: Date, project: Proje
 <head>
 <meta charset="UTF-8">
 <title>BTB - ${escHtml(project?.name)} - ${dateLabel}</title>
-<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
 <style>${PRINT_STYLES}</style>
 </head>
 <body>
@@ -805,7 +805,7 @@ export default function ProjectDetailPage() {
 <head>
 <meta charset="UTF-8">
 <title>BTB - ${escHtml(project?.name)} - KW ${activeWeek.kw}</title>
-<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
 <style>${PRINT_STYLES}</style>
 </head>
 <body>

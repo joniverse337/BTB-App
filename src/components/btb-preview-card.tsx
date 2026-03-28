@@ -108,13 +108,13 @@ export function BtbPreviewCard({
         )}
 
         {/* Card content (scaled down) */}
-        <div className="relative z-10 p-[3%]" style={{ fontFamily: "'IBM Plex Sans', sans-serif" }}>
+        <div className="relative z-10 p-[3%]" style={{ fontFamily: "var(--font-ibm-plex-sans), sans-serif" }}>
           {/* Header */}
           <div className="flex items-start justify-between border-b-2 border-[#1a2040] pb-1.5">
             <div>
               <div
                 className="text-[clamp(8px,1.8vw,15pt)] font-extrabold text-[#1a2040]"
-                style={{ fontFamily: "'Syne', sans-serif" }}
+                style={{ fontFamily: "var(--font-inter), sans-serif" }}
               >
                 {firma}
               </div>

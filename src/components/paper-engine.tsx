@@ -39,11 +39,24 @@ export function PaperEngine({
   const dims = A4[orientation]
 
   const handlePrint = () => {
+    // Injiziere @page size passend zur Orientierung — Browser kann sonst nicht
+    // automatisch zwischen Hoch- und Querformat wechseln
+    const styleEl = document.createElement('style')
+    styleEl.id = 'paper-engine-page-size'
+    styleEl.textContent = `@page { size: A4 ${orientation}; margin: 0; }`
+    document.head.appendChild(styleEl)
+
     if (onPrint) {
       onPrint()
     } else {
       window.print()
     }
+
+    // Aufräumen nach dem Drucken
+    setTimeout(() => {
+      const el = document.getElementById('paper-engine-page-size')
+      if (el) el.remove()
+    }, 1000)
   }
 
   return (
@@ -56,8 +69,11 @@ export function PaperEngine({
         paddingBottom: '40px',
       }}
     >
-      {/* Äußerer Wrapper: zentriert das Blatt und skaliert via zoom */}
+      {/* Äußerer Wrapper: zentriert das Blatt und skaliert via zoom.
+          Klasse paper-engine-zoom-wrapper wird in @media print transform:none gesetzt,
+          damit position:fixed auf dem Paper korrekt relativ zum Viewport funktioniert. */}
       <div
+        className="paper-engine-zoom-wrapper"
         style={{
           transformOrigin: 'top center',
           transform: `scale(${zoom / 100})`,

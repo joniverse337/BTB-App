@@ -79,7 +79,14 @@
     visibility: visible;
   }
 
-  /* Schritt 3: Papier oben-links positionieren, Zoom zurücksetzen */
+  /* Schritt 3: Zoom-Wrapper transform entfernen — sonst wird position:fixed
+     relativ zum transformierten Elternelement positioniert (Chrome-Bug) */
+  .paper-engine-zoom-wrapper {
+    transform: none !important;
+    margin: 0 !important;
+  }
+
+  /* Schritt 4: Papier oben-links positionieren, Zoom zurücksetzen */
   .paper-print-target {
     position: fixed !important;
     left: 0 !important;
@@ -88,15 +95,17 @@
     box-shadow: none !important;
     border-radius: 0 !important;
     overflow: visible !important;
+    print-color-adjust: exact !important;
+    -webkit-print-color-adjust: exact !important;
   }
 
-  /* Schritt 4: UI-Elemente die nicht gedruckt werden sollen ausblenden */
+  /* Schritt 5: UI-Elemente die nicht gedruckt werden sollen ausblenden */
   [data-no-print] {
     display: none !important;
     visibility: hidden !important;
   }
 
-  /* Schritt 5: Inputs und Textareas drucken ihren Wert (kein leeres Feld) */
+  /* Schritt 6: Inputs und Textareas drucken ihren Wert (kein leeres Feld) */
   input,
   textarea,
   select {

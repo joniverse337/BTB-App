@@ -61,3 +61,56 @@
   color: #aaa;
   pointer-events: none;
 }
+
+/* =============================================================
+   PaperEngine — @media print
+   WYSIWYG: Druckt exakt das was auf dem Bildschirm zu sehen ist.
+   Alles außer .paper-print-target wird ausgeblendet.
+   ============================================================= */
+@media print {
+  /* Schritt 1: Alles unsichtbar */
+  body * {
+    visibility: hidden;
+  }
+
+  /* Schritt 2: Nur das Papier + Inhalt sichtbar */
+  .paper-print-target,
+  .paper-print-target * {
+    visibility: visible;
+  }
+
+  /* Schritt 3: Papier oben-links positionieren, Zoom zurücksetzen */
+  .paper-print-target {
+    position: fixed !important;
+    left: 0 !important;
+    top: 0 !important;
+    transform: none !important;
+    box-shadow: none !important;
+    border-radius: 0 !important;
+    overflow: visible !important;
+  }
+
+  /* Schritt 4: UI-Elemente die nicht gedruckt werden sollen ausblenden */
+  [data-no-print] {
+    display: none !important;
+    visibility: hidden !important;
+  }
+
+  /* Schritt 5: Inputs und Textareas drucken ihren Wert (kein leeres Feld) */
+  input,
+  textarea,
+  select {
+    -webkit-appearance: none;
+    appearance: none;
+    border-color: transparent !important;
+    background: transparent !important;
+    resize: none !important;
+    color: #222 !important;
+  }
+
+  /* Seitenränder entfernen — Papier definiert eigene Maße */
+  @page {
+    margin: 0;
+    size: auto;
+  }
+}

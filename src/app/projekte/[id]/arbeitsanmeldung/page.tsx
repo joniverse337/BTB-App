@@ -613,13 +613,13 @@ export default function ArbeitsanmeldungPage() {
           activeIndex={activeKWIndex}
           onSelectWeek={setActiveKWIndex}
           shifts={[]}
-          zoom={100}
-          onZoomChange={() => {}}
+          zoom={zoom}
+          onZoomChange={setZoom}
           onPrintKW={handlePrint}
           lzVon={project.lz_von}
           lzBis={project.lz_bis}
           printLabel="AA drucken"
-          compactPrint={true}
+          compactPrint={false}
         />
 
         <div style={{ flex: 1, overflow: 'auto', padding: '20px' }}>
@@ -629,7 +629,6 @@ export default function ArbeitsanmeldungPage() {
             <PaperEngine
               orientation="landscape"
               zoom={zoom}
-              onZoomChange={setZoom}
               onPrint={handlePrint}
             >
               <WorkNotificationTable

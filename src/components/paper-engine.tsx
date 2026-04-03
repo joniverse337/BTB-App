@@ -2,7 +2,6 @@
 
 import { useRef } from 'react'
 import { Printer } from 'lucide-react'
-import { TriangleZoomContainer } from '@/components/zoom-controls'
 
 // DIN A4 Abmessungen in mm
 const A4 = {
@@ -13,7 +12,6 @@ const A4 = {
 interface PaperEngineProps {
   orientation: 'portrait' | 'landscape'
   zoom?: number
-  onZoomChange?: (zoom: number) => void
   /** Wird aufgerufen wenn der Nutzer auf Drucken klickt — Standard: window.print() */
   onPrint?: () => void
   children: React.ReactNode
@@ -34,7 +32,6 @@ interface PaperEngineProps {
 export function PaperEngine({
   orientation,
   zoom = 75,
-  onZoomChange,
   onPrint,
   children,
 }: PaperEngineProps) {
@@ -59,28 +56,6 @@ export function PaperEngine({
         paddingBottom: '40px',
       }}
     >
-      {/* Zoom-Steuerung */}
-      {onZoomChange && (
-        <div
-          data-no-print="true"
-          style={{
-            width: '180px',
-            marginBottom: '16px',
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            gap: '4px',
-          }}
-        >
-          <span style={{ fontSize: '9pt', color: '#7a85a8', fontFamily: 'var(--font-ibm-plex-sans), sans-serif' }}>
-            {zoom}%
-          </span>
-          <div style={{ width: '100%' }}>
-            <TriangleZoomContainer zoom={zoom} onZoomChange={onZoomChange} />
-          </div>
-        </div>
-      )}
-
       {/* Äußerer Wrapper: zentriert das Blatt und skaliert via zoom */}
       <div
         style={{

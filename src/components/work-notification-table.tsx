@@ -20,6 +20,8 @@ interface WorkNotificationTableProps {
   onFieldBlur: (weekdayNr: number, field: string, value: string | null) => void
   onClearShift: (weekdayNr: number, type: 'day' | 'night') => void
   onCheckboxChange: (weekdayNr: number, field: string, value: boolean) => void
+  /** Batch-Update: Schichtzeiten in einem einzigen DB-Write setzen (verhindert Race Condition) */
+  onSetShiftTimes?: (weekdayNr: number, fields: Record<string, string>) => void
   onAddDay: (weekdayNr: number, copyFromPrevious: boolean) => void
   onRemoveDay: (weekdayNr: number) => void
   /** @deprecated Print-Button ist jetzt Teil der PaperEngine */
@@ -143,7 +145,7 @@ const COPY_BTN: React.CSSProperties = {
 
 export function WorkNotificationTable({
   rows, week, project, logo, companyInfo, disabledDays, activeDays, equipmentCategories,
-  onUpdateRow, onBlurSave, onFieldBlur, onClearShift, onCheckboxChange, onAddDay, onRemoveDay,
+  onUpdateRow, onBlurSave, onFieldBlur, onClearShift, onCheckboxChange, onAddDay, onRemoveDay, onSetShiftTimes,
 }: WorkNotificationTableProps) {
   if (!week) {
     return <div style={{ padding: '40px', textAlign: 'center', color: '#7a85a8' }}>Keine Kalenderwoche ausgewählt.</div>
@@ -233,6 +235,7 @@ export function WorkNotificationTable({
                         nightStart={row.night_start} nightEnd={row.night_end}
                         disabled={isDisabled} weekdayNr={row.weekday_nr}
                         onFieldBlur={onFieldBlur} onClearShift={onClearShift}
+                        onSetShiftTimes={onSetShiftTimes}
                       />
                     </td>
                     <td style={{ ...TD_STYLE, ...COL_STYLES.ort, height: '1px', padding: 0 }}>

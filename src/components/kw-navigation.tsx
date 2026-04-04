@@ -2,7 +2,7 @@
 
 import { useRef, useEffect, useCallback } from 'react'
 import { addDays } from 'date-fns'
-import { Printer } from 'lucide-react'
+import { Printer, Trash2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { toDateString } from '@/lib/kw-utils'
 import type { KWInfo } from '@/lib/kw-utils'
@@ -18,6 +18,12 @@ interface KWNavigationProps {
   onPrintKW: () => void
   lzVon: string | null
   lzBis: string | null
+  printLabel?: string
+  compactPrint?: boolean
+  /** Wenn gesetzt: Lösch-Button neben Druck-Button — löscht die aktive KW */
+  onDeleteKW?: () => void
+  /** Ersetzt DotRaster in KW-Chips — z.B. Status-Rechteck für AA */
+  renderWeekStatus?: (week: KWInfo) => React.ReactNode
 }
 
 function DotRaster({ weekStart, shifts, lzVon, lzBis }: {
@@ -104,7 +110,8 @@ function ZoomSlider({ zoom, onZoomChange }: { zoom: number; onZoomChange: (z: nu
 
 export function KWNavigation({
   weeks, activeIndex, onSelectWeek, shifts,
-  zoom, onZoomChange, onPrintKW, lzVon, lzBis,
+  zoom, onZoomChange, onPrintKW, lzVon, lzBis, printLabel = 'KW drucken', compactPrint = false,
+  onDeleteKW, renderWeekStatus,
 }: KWNavigationProps) {
   const activeRef = useRef<HTMLButtonElement>(null)
 
@@ -120,16 +127,33 @@ export function KWNavigation({
 
   return (
     <div className="flex items-start shrink-0 border-b bg-background px-3 pt-4 pb-3 gap-1.5">
-      {/* Left: print + zoom — styled like KW chips */}
+      {/* Left: print + zoom (or compact icon-only print + placeholder chip) */}
       <div className="shrink-0 flex flex-col gap-1.5">
-        <button
-          onClick={onPrintKW}
-          className="flex items-center gap-1.5 text-[10px] font-semibold border border-border bg-card text-muted-foreground rounded-md py-1.5 px-2 cursor-pointer hover:border-primary/40 hover:text-foreground transition-colors whitespace-nowrap"
-        >
-          <Printer size={11} />
-          KW drucken
-        </button>
-        <ZoomSlider zoom={zoom} onZoomChange={onZoomChange} />
+        {compactPrint ? (
+          <div className="flex flex-col gap-0.5 rounded-md border border-border bg-card px-2 py-1.5 opacity-30" style={{ minWidth: '64px' }} />
+        ) : (
+          <>
+            <div className="flex gap-1.5">
+              <button
+                onClick={onPrintKW}
+                className="flex items-center gap-1.5 text-[10px] font-semibold border border-border bg-card text-muted-foreground rounded-md py-1.5 px-2 cursor-pointer hover:border-primary/40 hover:text-foreground transition-colors whitespace-nowrap"
+              >
+                <Printer size={11} />
+                {printLabel}
+              </button>
+              {onDeleteKW && (
+                <button
+                  onClick={onDeleteKW}
+                  title="Arbeitsanmeldung löschen"
+                  className="flex items-center justify-center border border-border bg-card text-muted-foreground rounded-md py-1.5 px-2 cursor-pointer hover:border-destructive/60 hover:text-destructive transition-colors"
+                >
+                  <Trash2 size={11} />
+                </button>
+              )}
+            </div>
+            <ZoomSlider zoom={zoom} onZoomChange={onZoomChange} />
+          </>
+        )}
       </div>
 
       {/* Scrollable KW chips */}
@@ -157,7 +181,10 @@ export function KWNavigation({
               <span className="text-[10px] text-muted-foreground whitespace-nowrap">
                 {week.dateRange}
               </span>
-              <DotRaster weekStart={week.weekStart} shifts={shifts} lzVon={lzVon} lzBis={lzBis} />
+              {renderWeekStatus
+                ? renderWeekStatus(week)
+                : <DotRaster weekStart={week.weekStart} shifts={shifts} lzVon={lzVon} lzBis={lzBis} />
+              }
             </button>
           )
         })}

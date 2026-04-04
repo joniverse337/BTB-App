@@ -94,6 +94,16 @@ export default function ArbeitsanmeldungPage() {
   const [aaExists, setAaExists] = useState(false)
   const [showOverwriteDialog, setShowOverwriteDialog] = useState(false)
   const [zoom, setZoom] = useState(75)
+  const [printedWeeks, setPrintedWeeks] = useState<Set<string>>(new Set())
+
+  // Load printed-weeks from localStorage
+  useEffect(() => {
+    if (!projectId) return
+    try {
+      const stored = localStorage.getItem(`aa_printed_${projectId}`)
+      if (stored) setPrintedWeeks(new Set(JSON.parse(stored)))
+    } catch {}
+  }, [projectId])
 
   // Logo state
   const [aaLogo, setAaLogo] = useState<{ url: string; x: number; y: number; size: number } | null>(null)
@@ -295,6 +305,16 @@ export default function ArbeitsanmeldungPage() {
   const handleFieldBlur = (weekdayNr: number, field: string, value: string | null) => {
     setRows((prev) => {
       const updated = prev.map((r) => r.weekday_nr === weekdayNr ? { ...r, [field]: value } : r)
+      const row = updated.find((r) => r.weekday_nr === weekdayNr)
+      if (row) handleSaveRow(row)
+      return updated
+    })
+  }
+
+  // Batch-Update: Schichtzeiten in einem einzigen DB-Write setzen (verhindert Race Condition)
+  const handleSetShiftTimes = (weekdayNr: number, fields: Record<string, string>) => {
+    setRows((prev) => {
+      const updated = prev.map((r) => r.weekday_nr === weekdayNr ? { ...r, ...fields } : r)
       const row = updated.find((r) => r.weekday_nr === weekdayNr)
       if (row) handleSaveRow(row)
       return updated
@@ -538,7 +558,23 @@ export default function ArbeitsanmeldungPage() {
       toast.warning('Keine aktiven Tage zum Drucken.')
       return
     }
+    const activeWeek = weeks[activeKWIndex]
+    const prevTitle = document.title
+    if (activeWeek) {
+      document.title = `Arbeitsanmeldung KW ${activeWeek.kw} ${project?.name || ''}`.trim()
+    }
     window.print()
+    // Restore title after print dialog closes
+    window.addEventListener('afterprint', () => { document.title = prevTitle }, { once: true })
+    // Mark as printed — persisted in localStorage
+    if (activeWeek) {
+      const key = `${activeWeek.year}_${activeWeek.kw}`
+      setPrintedWeeks((prev) => {
+        const next = new Set([...prev, key])
+        localStorage.setItem(`aa_printed_${projectId}`, JSON.stringify([...next]))
+        return next
+      })
+    }
   }
 
   // Determine which days are out of range
@@ -552,6 +588,32 @@ export default function ArbeitsanmeldungPage() {
         disabledDays.add(i + 1)
       }
     }
+  }
+
+  // Status-Rechteck für KW-Chips: gelber Rahmen = nicht gedruckt, gefüllt = gedruckt
+  const renderWeekStatus = (week: KWInfo) => {
+    const key = `${week.year}_${week.kw}`
+    const printed = printedWeeks.has(key)
+    return (
+      <div style={{
+        marginTop: '4px',
+        width: '52px', height: '12px',
+        border: printed ? 'none' : '1px solid #e8c547',
+        background: printed ? '#e8c547' : 'transparent',
+        borderRadius: '2px',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+      }}>
+        <svg width="10" height="8" viewBox="0 0 10 8" fill="none">
+          <polyline
+            points="1,4 4,7 9,1"
+            stroke={printed ? '#1a2040' : '#e8c547'}
+            strokeWidth="1.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        </svg>
+      </div>
+    )
   }
 
   // Loading state
@@ -620,6 +682,8 @@ export default function ArbeitsanmeldungPage() {
           lzBis={project.lz_bis}
           printLabel="AA drucken"
           compactPrint={false}
+          onDeleteKW={aaExists ? handleDeleteAA : undefined}
+          renderWeekStatus={renderWeekStatus}
         />
 
         <div style={{ flex: 1, overflow: 'auto', padding: '20px' }}>
@@ -644,6 +708,7 @@ export default function ArbeitsanmeldungPage() {
                 onBlurSave={handleBlurSave}
                 onFieldBlur={handleFieldBlur}
                 onClearShift={handleClearShiftType}
+                onSetShiftTimes={handleSetShiftTimes}
                 onCheckboxChange={handleCheckboxChange}
                 onAddDay={handleAddDay}
                 onRemoveDay={handleRemoveDay}

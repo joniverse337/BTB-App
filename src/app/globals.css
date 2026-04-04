@@ -94,7 +94,7 @@
     transform: none !important;
     box-shadow: none !important;
     border-radius: 0 !important;
-    overflow: visible !important;
+    overflow: hidden !important;
     print-color-adjust: exact !important;
     -webkit-print-color-adjust: exact !important;
   }

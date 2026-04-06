@@ -37,18 +37,18 @@ function formatDate(dateStr: string | null): string {
 export function ProjectCard({ project, onEdit, onDelete, onClick }: ProjectCardProps) {
   return (
     <Card
-      className="group cursor-pointer transition-colors hover:border-primary/50"
+      className="group cursor-pointer rounded-xl border border-white/10 bg-white/5 shadow-2xl backdrop-blur-md transition-all hover:border-primary/50 hover:bg-white/10"
       onClick={() => onClick(project)}
       role="article"
       aria-label={`Projekt: ${project.name}`}
     >
       <CardHeader className="flex flex-row items-start justify-between space-y-0 pb-3">
         <div className="flex-1 min-w-0 pr-2">
-          <CardTitle className="text-lg truncate" title={project.name}>
+          <CardTitle className="text-lg truncate text-white" title={project.name}>
             {project.name}
           </CardTitle>
           {project.nr && (
-            <p className="text-sm text-muted-foreground mt-1 truncate" title={project.nr}>
+            <p className="text-sm text-white/50 mt-1 truncate" title={project.nr}>
               {project.nr}
             </p>
           )}
@@ -57,7 +57,7 @@ export function ProjectCard({ project, onEdit, onDelete, onClick }: ProjectCardP
           <Button
             variant="ghost"
             size="icon"
-            className="h-8 w-8"
+            className="h-8 w-8 text-white/70 hover:text-white hover:bg-white/10"
             onClick={(e) => {
               e.stopPropagation()
               onEdit(project)
@@ -71,7 +71,7 @@ export function ProjectCard({ project, onEdit, onDelete, onClick }: ProjectCardP
               <Button
                 variant="ghost"
                 size="icon"
-                className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
+                className="h-8 w-8 text-red-400 hover:text-red-300 hover:bg-red-500/10"
                 onClick={(e) => e.stopPropagation()}
                 aria-label={`Projekt "${project.name}" löschen`}
               >
@@ -103,14 +103,14 @@ export function ProjectCard({ project, onEdit, onDelete, onClick }: ProjectCardP
 
       <CardContent className="space-y-2">
         {project.ag && (
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+          <div className="flex items-center gap-2 text-sm text-white/50">
             <Building2 className="h-4 w-4 shrink-0" />
             <span className="truncate" title={project.ag}>{project.ag}</span>
           </div>
         )}
 
         {(project.lz_von || project.lz_bis) && (
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+          <div className="flex items-center gap-2 text-sm text-white/50">
             <Calendar className="h-4 w-4 shrink-0" />
             <span>
               {formatDate(project.lz_von)}
@@ -121,7 +121,7 @@ export function ProjectCard({ project, onEdit, onDelete, onClick }: ProjectCardP
         )}
 
         <div className="flex items-center gap-2 pt-1">
-          <Badge variant="secondary" className="text-xs">
+          <Badge variant="secondary" className="text-xs border-white/10 bg-white/10 text-white/70">
             <FileText className="h-3 w-3 mr-1" />
             {project.btb_count ?? 0} BTB-Tage
           </Badge>

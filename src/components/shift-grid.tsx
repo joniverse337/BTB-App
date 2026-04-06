@@ -29,6 +29,8 @@ interface ShiftGridProps {
   onUpdateEquipment: (equipmentId: string, field: string, value: string | number) => void
   onDeleteEquipment: (equipmentId: string) => void
   onPrintShift: (shift: ShiftWithDetails, date: Date) => void
+  aaShiftKeys?: Set<string>
+  onCreateFromAA?: (datum: string, typ: 'tag' | 'nacht') => void
 }
 
 function Slot({
@@ -88,7 +90,7 @@ export function ShiftGrid({
   onCreateShift, onCopyPreviousDay, onUpdateShift, onDeleteShift,
   onAddWorker, onUpdateWorker, onDeleteWorker,
   onAddEquipment, onUpdateEquipment, onDeleteEquipment,
-  onPrintShift,
+  onPrintShift, aaShiftKeys, onCreateFromAA,
 }: ShiftGridProps) {
   const scale = zoom / 100
   const cardW = Math.round(CARD_W * scale)
@@ -133,6 +135,7 @@ export function ShiftGrid({
               <EmptySlot date={day} typ="tag"
                 onCreateEmpty={() => onCreateShift(dateStr, 'tag')}
                 onCopyPrevious={() => onCopyPreviousDay(dateStr, 'tag')}
+                onCreateFromAA={onCreateFromAA && aaShiftKeys?.has(`${dateStr}:tag`) ? () => onCreateFromAA(dateStr, 'tag') : undefined}
               />
             )}
           </Slot>
@@ -158,6 +161,7 @@ export function ShiftGrid({
               <EmptySlot date={day} typ="nacht"
                 onCreateEmpty={() => onCreateShift(dateStr, 'nacht')}
                 onCopyPrevious={() => onCopyPreviousDay(dateStr, 'nacht')}
+                onCreateFromAA={onCreateFromAA && aaShiftKeys?.has(`${dateStr}:nacht`) ? () => onCreateFromAA(dateStr, 'nacht') : undefined}
               />
             )}
           </Slot>

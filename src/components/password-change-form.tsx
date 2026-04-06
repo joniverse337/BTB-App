@@ -1,13 +1,13 @@
 'use client'
 
-import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { CheckCircle2, AlertCircle } from 'lucide-react'
+import { FormAlert } from '@/components/form-alert'
+import { useFormSubmit } from '@/hooks/use-form-submit'
 import { createClient } from '@/lib/supabase'
 
 const passwordChangeSchema = z
@@ -24,9 +24,7 @@ const passwordChangeSchema = z
 type PasswordChangeData = z.infer<typeof passwordChangeSchema>
 
 export function PasswordChangeForm() {
-  const [isSubmitting, setIsSubmitting] = useState(false)
-  const [successMessage, setSuccessMessage] = useState<string | null>(null)
-  const [errorMessage, setErrorMessage] = useState<string | null>(null)
+  const { isSubmitting, successMessage, errorMessage, execute } = useFormSubmit()
 
   const {
     register,
@@ -43,18 +41,13 @@ export function PasswordChangeForm() {
   })
 
   async function onSubmit(data: PasswordChangeData) {
-    setIsSubmitting(true)
-    setSuccessMessage(null)
-    setErrorMessage(null)
-
-    try {
+    await execute(async () => {
       const supabase = createClient()
 
       // Verify current password by re-authenticating
       const { data: userData } = await supabase.auth.getUser()
       if (!userData.user?.email) {
-        setErrorMessage('Benutzer konnte nicht ermittelt werden.')
-        return
+        throw new Error('Benutzer konnte nicht ermittelt werden.')
       }
 
       const { error: signInError } = await supabase.auth.signInWithPassword({
@@ -63,8 +56,7 @@ export function PasswordChangeForm() {
       })
 
       if (signInError) {
-        setErrorMessage('Aktuelles Passwort ist nicht korrekt.')
-        return
+        throw new Error('Aktuelles Passwort ist nicht korrekt.')
       }
 
       // Update password
@@ -73,36 +65,18 @@ export function PasswordChangeForm() {
       })
 
       if (updateError) {
-        setErrorMessage('Passwort konnte nicht geändert werden. Bitte versuche es erneut.')
-        return
+        throw new Error('Passwort konnte nicht geändert werden. Bitte versuche es erneut.')
       }
 
-      setSuccessMessage('Passwort wurde erfolgreich geändert.')
       reset()
-    } catch {
-      setErrorMessage('Ein unerwarteter Fehler ist aufgetreten.')
-    } finally {
-      setIsSubmitting(false)
-    }
+      return 'Passwort wurde erfolgreich geändert.'
+    })
   }
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 max-w-md">
-      {/* Success message */}
-      {successMessage && (
-        <div className="flex items-center gap-2 rounded-md border border-green-500/30 bg-green-500/10 px-4 py-3 text-sm text-green-400">
-          <CheckCircle2 className="h-4 w-4 shrink-0" />
-          <span>{successMessage}</span>
-        </div>
-      )}
-
-      {/* Error message */}
-      {errorMessage && (
-        <div className="flex items-center gap-2 rounded-md border border-destructive/50 bg-destructive/10 px-4 py-3 text-sm text-destructive">
-          <AlertCircle className="h-4 w-4 shrink-0" />
-          <span>{errorMessage}</span>
-        </div>
-      )}
+      <FormAlert type="success" message={successMessage} />
+      <FormAlert type="error" message={errorMessage} />
 
       <div className="space-y-2">
         <Label htmlFor="current-password">Aktuelles Passwort</Label>

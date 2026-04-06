@@ -5,11 +5,12 @@ interface EmptySlotProps {
   typ: 'tag' | 'nacht'
   onCreateEmpty: () => void
   onCopyPrevious: () => void
+  onCreateFromAA?: () => void
 }
 
 const WT = ['Sonntag', 'Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag', 'Samstag']
 
-export function EmptySlot({ date, typ, onCreateEmpty, onCopyPrevious }: EmptySlotProps) {
+export function EmptySlot({ date, typ, onCreateEmpty, onCopyPrevious, onCreateFromAA }: EmptySlotProps) {
   const isTag = typ === 'tag'
   const wt = WT[date.getDay()]
   const day = date.getDate()
@@ -49,6 +50,15 @@ export function EmptySlot({ date, typ, onCreateEmpty, onCopyPrevious }: EmptySlo
         }}>
           Vortag übernehmen
         </button>
+        {onCreateFromAA && (
+          <button onClick={onCreateFromAA} style={{
+            padding: '16px 40px', borderRadius: '10px',
+            border: '1px solid #2b3454', background: 'rgba(255,255,255,.05)', color: '#7a85a8',
+            fontSize: '20px', fontWeight: 600, fontFamily: "var(--font-ibm-plex-sans), sans-serif", cursor: 'pointer',
+          }}>
+            Aus Arbeitsanmeldung erstellen
+          </button>
+        )}
       </div>
     </div>
   )

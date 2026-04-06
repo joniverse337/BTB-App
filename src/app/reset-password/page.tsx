@@ -8,7 +8,7 @@ import { z } from 'zod'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
+import { AuthLayout } from '@/components/auth-layout'
 import { createClient } from '@/lib/supabase'
 
 const resetSchema = z.object({
@@ -51,67 +51,64 @@ export default function ResetPasswordPage() {
 
   if (success) {
     return (
-      <div className="min-h-screen flex items-center justify-center px-4">
-        <Card className="w-full max-w-sm">
-          <CardHeader>
-            <CardTitle className="text-xl font-bold">E-Mail versandt</CardTitle>
-            <CardDescription>
-              Falls diese E-Mail registriert ist, erhältst du in Kürze einen Link zum Zurücksetzen deines Passworts.
-            </CardDescription>
-          </CardHeader>
-          <CardFooter>
-            <Link href="/login" className="text-sm text-primary hover:underline">
-              Zurück zum Login
-            </Link>
-          </CardFooter>
-        </Card>
-      </div>
+      <AuthLayout>
+        <div className="text-center space-y-3">
+          <h1 className="text-xl font-bold text-white">E-Mail versandt</h1>
+          <p className="text-sm text-white/60">
+            Falls diese E-Mail registriert ist, erhältst du in Kürze einen Link zum Zurücksetzen deines Passworts.
+          </p>
+          <Link href="/login" className="text-sm text-primary hover:underline inline-block mt-2">
+            Zurück zum Login
+          </Link>
+        </div>
+      </AuthLayout>
     )
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center px-4">
-      <Card className="w-full max-w-sm">
-        <CardHeader className="space-y-1">
-          <CardTitle className="text-2xl font-bold">Passwort zurücksetzen</CardTitle>
-          <CardDescription>
-            Gib deine E-Mail-Adresse ein. Du erhältst einen Link zum Zurücksetzen.
-          </CardDescription>
-        </CardHeader>
+    <AuthLayout>
+      {/* Logo */}
+      <div className="mb-6 flex items-baseline justify-center gap-0.5" style={{ fontFamily: 'var(--font-inter), sans-serif' }}>
+        <span className="text-2xl font-extrabold text-white">btb</span>
+        <span className="text-2xl font-bold text-primary">.online</span>
+      </div>
 
-        <form onSubmit={handleSubmit(onSubmit)}>
-          <CardContent className="space-y-4">
-            {serverError && (
-              <div className="text-sm text-destructive bg-destructive/10 px-3 py-2 rounded-md">
-                {serverError}
-              </div>
-            )}
+      <div className="space-y-1 text-center mb-6">
+        <h1 className="text-xl font-bold text-white">Passwort zurücksetzen</h1>
+        <p className="text-sm text-white/60">
+          Gib deine E-Mail-Adresse ein. Du erhältst einen Link zum Zurücksetzen.
+        </p>
+      </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="email">E-Mail</Label>
-              <Input
-                id="email"
-                type="email"
-                placeholder="name@firma.de"
-                autoComplete="email"
-                {...register('email')}
-              />
-              {errors.email && (
-                <p className="text-xs text-destructive">{errors.email.message}</p>
-              )}
-            </div>
-          </CardContent>
+      <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+        {serverError && (
+          <div className="text-sm text-destructive bg-destructive/10 px-3 py-2 rounded-md">
+            {serverError}
+          </div>
+        )}
 
-          <CardFooter className="flex flex-col gap-3">
-            <Button type="submit" className="w-full font-semibold" disabled={isLoading}>
-              {isLoading ? 'Wird gesendet…' : 'Reset-Link senden'}
-            </Button>
-            <Link href="/login" className="text-sm text-muted-foreground hover:text-primary text-center">
-              Zurück zum Login
-            </Link>
-          </CardFooter>
-        </form>
-      </Card>
-    </div>
+        <div className="space-y-2">
+          <Label htmlFor="email" className="text-white/80">E-Mail</Label>
+          <Input
+            id="email"
+            type="email"
+            placeholder="name@firma.de"
+            autoComplete="email"
+            {...register('email')}
+          />
+          {errors.email && (
+            <p className="text-xs text-destructive">{errors.email.message}</p>
+          )}
+        </div>
+
+        <Button type="submit" className="w-full font-semibold" disabled={isLoading}>
+          {isLoading ? 'Wird gesendet…' : 'Reset-Link senden'}
+        </Button>
+
+        <Link href="/login" className="text-sm text-white/50 hover:text-primary text-center block transition-colors">
+          Zurück zum Login
+        </Link>
+      </form>
+    </AuthLayout>
   )
 }

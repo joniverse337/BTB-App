@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useState } from 'react'
-import { useParams } from 'next/navigation'
+import { useParams, useRouter, useSearchParams } from 'next/navigation'
 import { AlertCircle, Copy } from 'lucide-react'
 import { addDays } from 'date-fns'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -25,29 +25,8 @@ import type { KWInfo } from '@/lib/kw-utils'
 import type { Project } from '@/lib/validations/project'
 import { toast } from 'sonner'
 
-export interface WorkNotificationRow {
-  id?: string
-  project_id: string
-  calendar_week: number
-  year: number
-  weekday_nr: number
-  weekday_name: string
-  date: string
-  day_start: string | null
-  day_end: string | null
-  night_start: string | null
-  night_end: string | null
-  location: string | null
-  bauspitzen: string | null
-  workers: string | null
-  machines: string | null
-  work_description: string | null
-  site_manager: string | null
-  safety_plan_enabled: boolean
-  safety_plan_number: string | null
-  track_work_enabled: boolean
-  betra_number: string | null
-}
+import type { WorkNotificationRow } from '@/lib/validations/work-notification'
+export type { WorkNotificationRow } from '@/lib/validations/work-notification'
 
 const WEEKDAY_NAMES = ['Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag', 'Samstag', 'Sonntag']
 
@@ -83,6 +62,8 @@ function buildEmptyRows(projectId: string, week: KWInfo): WorkNotificationRow[] 
 export default function ArbeitsanmeldungPage() {
   const params = useParams()
   const projectId = params.id as string
+  const router = useRouter()
+  const searchParams = useSearchParams()
 
   const [project, setProject] = useState<Project | null>(null)
   const [isLoadingProject, setIsLoadingProject] = useState(true)
@@ -145,8 +126,14 @@ export default function ArbeitsanmeldungPage() {
     }
     const computedWeeks = getKWsForRange(project.lz_von, project.lz_bis)
     setWeeks(computedWeeks)
-    setActiveKWIndex(getCurrentKWIndex(computedWeeks))
-  }, [project])
+    const kwParam = searchParams.get('kw')
+    if (kwParam) {
+      const idx = computedWeeks.findIndex(w => String(w.kw) === kwParam)
+      setActiveKWIndex(idx >= 0 ? idx : getCurrentKWIndex(computedWeeks))
+    } else {
+      setActiveKWIndex(getCurrentKWIndex(computedWeeks))
+    }
+  }, [project, searchParams])
 
   // Fetch company info + logo settings
   useEffect(() => {
@@ -546,6 +533,14 @@ export default function ArbeitsanmeldungPage() {
       setAaExists(false)
       setActiveDays(new Set())
       setRows(buildEmptyRows(projectId, activeWeek))
+      // Druckstatus zurücksetzen
+      const key = `${activeWeek.year}_${activeWeek.kw}`
+      setPrintedWeeks((prev) => {
+        const next = new Set([...prev])
+        next.delete(key)
+        localStorage.setItem(`aa_printed_${projectId}`, JSON.stringify([...next]))
+        return next
+      })
       toast.success('Arbeitsanmeldung gelöscht.')
     } catch {
       toast.error('Fehler beim Löschen.')
@@ -598,7 +593,7 @@ export default function ArbeitsanmeldungPage() {
       <div style={{
         marginTop: '4px',
         width: '52px', height: '12px',
-        border: printed ? 'none' : '1px solid #e8c547',
+        border: printed ? 'none' : '1px solid #555',
         background: printed ? '#e8c547' : 'transparent',
         borderRadius: '2px',
         display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -606,7 +601,7 @@ export default function ArbeitsanmeldungPage() {
         <svg width="10" height="8" viewBox="0 0 10 8" fill="none">
           <polyline
             points="1,4 4,7 9,1"
-            stroke={printed ? '#1a2040' : '#e8c547'}
+            stroke={printed ? '#1a2040' : '#555'}
             strokeWidth="1.5"
             strokeLinecap="round"
             strokeLinejoin="round"
@@ -673,7 +668,11 @@ export default function ArbeitsanmeldungPage() {
         <KWNavigation
           weeks={weeks}
           activeIndex={activeKWIndex}
-          onSelectWeek={setActiveKWIndex}
+          onSelectWeek={(idx) => {
+            setActiveKWIndex(idx)
+            const kw = weeks[idx]?.kw
+            if (kw) router.replace(`/projekte/${projectId}/arbeitsanmeldung?kw=${kw}`, { scroll: false })
+          }}
           shifts={[]}
           zoom={zoom}
           onZoomChange={setZoom}
@@ -682,7 +681,7 @@ export default function ArbeitsanmeldungPage() {
           lzBis={project.lz_bis}
           printLabel="AA drucken"
           compactPrint={false}
-          onDeleteKW={aaExists ? handleDeleteAA : undefined}
+          onDeleteKW={undefined}
           renderWeekStatus={renderWeekStatus}
         />
 
@@ -694,6 +693,7 @@ export default function ArbeitsanmeldungPage() {
               orientation="landscape"
               zoom={zoom}
               onPrint={handlePrint}
+              onDelete={handleDeleteAA}
             >
               <WorkNotificationTable
                 rows={rows}
@@ -726,31 +726,33 @@ export default function ArbeitsanmeldungPage() {
               <div style={{ fontSize: '13px', color: 'hsl(var(--muted-foreground))', marginBottom: '8px' }}>
                 Lege eine neue Arbeitsanmeldung an oder übernimm die Vorwoche.
               </div>
-              <button
-                onClick={handleCreateAA}
-                style={{
-                  display: 'flex', alignItems: 'center', gap: '8px',
-                  padding: '10px 20px', borderRadius: '6px',
-                  border: '1px solid rgba(232,197,71,.4)', background: 'rgba(232,197,71,.12)',
-                  color: '#e8c547', fontSize: '13px', fontWeight: 600, cursor: 'pointer',
-                }}
-              >
-                Arbeitsanmeldung anlegen
-              </button>
-              {activeKWIndex > 0 && (
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'stretch', gap: '12px' }}>
                 <button
-                  onClick={handleCopyPreviousWeek}
+                  onClick={handleCreateAA}
                   style={{
-                    display: 'flex', alignItems: 'center', gap: '8px',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
                     padding: '10px 20px', borderRadius: '6px',
-                    border: '1px solid hsl(var(--border))', background: 'hsl(var(--card))',
-                    color: 'hsl(var(--foreground))', fontSize: '13px', fontWeight: 500, cursor: 'pointer',
+                    border: '1px solid rgba(232,197,71,.4)', background: 'rgba(232,197,71,.12)',
+                    color: '#e8c547', fontSize: '13px', fontWeight: 600, cursor: 'pointer',
                   }}
                 >
-                  <Copy size={14} />
-                  Aus Vorwoche übernehmen
+                  Arbeitsanmeldung anlegen
                 </button>
-              )}
+                {activeKWIndex > 0 && (
+                  <button
+                    onClick={handleCopyPreviousWeek}
+                    style={{
+                      display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
+                      padding: '10px 20px', borderRadius: '6px',
+                      border: '1px solid hsl(var(--border))', background: 'hsl(var(--card))',
+                      color: 'hsl(var(--foreground))', fontSize: '13px', fontWeight: 500, cursor: 'pointer',
+                    }}
+                  >
+                    <Copy size={14} />
+                    Aus Vorwoche übernehmen
+                  </button>
+                )}
+              </div>
             </div>
           )}
         </div>

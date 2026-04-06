@@ -1,6 +1,7 @@
 'use client'
 
 import Link from 'next/link'
+import { usePathname, useSearchParams } from 'next/navigation'
 import { Settings } from 'lucide-react'
 import type { Project } from '@/lib/validations/project'
 
@@ -10,6 +11,12 @@ interface ProjectDetailHeaderProps {
 }
 
 export function ProjectDetailHeader({ project, isLoading }: ProjectDetailHeaderProps) {
+  const pathname = usePathname()
+  const searchParams = useSearchParams()
+  const isOnAA = pathname?.includes('/arbeitsanmeldung')
+  const isOnSettings = pathname?.includes('/einstellungen')
+  const kwSuffix = searchParams.get('kw') ? `?kw=${searchParams.get('kw')}` : ''
+
   return (
     <header style={{
       background: '#171c28',
@@ -38,12 +45,38 @@ export function ProjectDetailHeader({ project, isLoading }: ProjectDetailHeaderP
             }}>
               {project.name}
             </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '4px', flexShrink: 0 }}>
+              <Link
+                href={`/projekte/${project.id}${kwSuffix}`}
+                style={{
+                  display: 'flex', alignItems: 'center',
+                  padding: '5px 12px', borderRadius: '6px', textDecoration: 'none',
+                  border: !isOnAA && !isOnSettings ? '1px solid #e8c547' : '1px solid transparent',
+                  color: !isOnAA && !isOnSettings ? '#e8c547' : '#8a90a8',
+                  fontSize: '13px', fontWeight: 500,
+                }}
+              >
+                Bautagesberichte
+              </Link>
+              <Link
+                href={`/projekte/${project.id}/arbeitsanmeldung${kwSuffix}`}
+                style={{
+                  display: 'flex', alignItems: 'center',
+                  padding: '5px 12px', borderRadius: '6px', textDecoration: 'none',
+                  border: isOnAA ? '1px solid #e8c547' : '1px solid transparent',
+                  color: isOnAA ? '#e8c547' : '#8a90a8',
+                  fontSize: '13px', fontWeight: 500,
+                }}
+              >
+                Arbeitsanmeldung
+              </Link>
+            </div>
             <Link
-              href={`/projekte/${project.id}/einstellungen`}
+              href={`/projekte/${project.id}/einstellungen?from=${isOnAA ? 'arbeitsanmeldung' : 'btb'}${kwSuffix ? '&' + kwSuffix.slice(1) : ''}`}
               style={{
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 width: '32px', height: '32px', borderRadius: '6px',
-                color: '#8a90a8', flexShrink: 0,
+                color: isOnSettings ? '#e8c547' : '#8a90a8', flexShrink: 0,
               }}
               aria-label="Projekteinstellungen"
               title="Projekteinstellungen"

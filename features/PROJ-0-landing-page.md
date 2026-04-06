@@ -1,10 +1,12 @@
 ---
 id: PROJ-0
 title: Landing Page
-status: In Review
+status: Deprecated
 created: 2026-03-22
-updated: 2026-03-25
+updated: 2026-03-29
 ---
+
+> **Deprecated (2026-03-29):** Landing Page gestrichen. Projektname steht noch nicht fest, daher kein Aufwand für Marketing-Seite. Design-Elemente (Hintergrundbild + transparente Logo-Box) werden in PROJ-1 (Login-Seite) übernommen.
 
 # PROJ-0: Landing Page (Redesign)
 
@@ -431,3 +433,91 @@ Dateinamen Beispiel: `hero-baustelle-1.jpg`, `hero-baustelle-2.jpg`, etc.
 - **Security:** Issues found (CSP font blocking, middleware blocking legal pages)
 - **Production Ready:** NO
 - **Recommendation:** Fix BUG-4 (critical -- legal compliance), BUG-5 (high -- fonts broken in production), and BUG-2 (high -- demo card invisible on mobile) before deployment. BUG-1 (medium) should also be addressed. Remaining low-severity bugs can be deferred.
+
+---
+
+## QA Test Results: Landing Page Removal (Deprecation)
+
+**Tested:** 2026-03-29
+**App URL:** http://localhost:3000
+**Tester:** QA Engineer (AI)
+**Scope:** Verifizieren, dass der Landing-Page-Code vollstaendig entfernt wurde (PROJ-0 Deprecation).
+
+### Pruefkriterien
+
+#### PK-1: Keine Landing Page Komponenten mehr vorhanden
+- [x] Keine Dateien mit Pattern `landing*.tsx` in `src/components/` oder `src/` gefunden
+- [x] Keine Dateien mit Pattern `demo*.tsx`, `hero*.tsx` in `src/` gefunden
+- [x] Keine Imports von `landing-feature-card`, `landing-kw-nav`, `LandingNavbar`, `LandingHero`, `LandingFooter`, `BtbDemo` o.ae. im gesamten `src/`-Verzeichnis
+- [x] Frueherer BUG-8 (tote Komponenten `landing-feature-card.tsx`, `landing-kw-nav.tsx`) ist behoben -- Dateien existieren nicht mehr
+
+**PASS**
+
+#### PK-2: src/app/page.tsx leitet nur noch weiter
+- [x] Datei enthaelt nur `import { redirect } from 'next/navigation'` und `redirect('/login')`
+- [x] Kein Landing-Page-JSX, kein Karussell, keine Demo-Card
+- [x] Keine Imports auf geloeschte Komponenten
+- [x] Server Component mit sauberer Redirect-Logik
+
+**PASS**
+
+#### PK-3: Keine toten Imports auf geloeschte Landing Page Komponenten
+- [x] `grep` nach allen bekannten Landing-Komponentennamen in `src/` ergibt 0 Treffer
+- [x] `grep` nach `from.*landing`, `from.*demo-card`, `from.*hero-carousel` ergibt 0 Treffer
+- [x] Build (`npm run build`) laeuft ohne Fehler durch -- keine broken imports
+
+**PASS**
+
+#### PK-4: Middleware leitet nicht-eingeloggte Nutzer zu /login
+- [ ] **BUG:** Zwei Middleware-Dateien vorhanden (siehe CLEANUP-BUG-1)
+- [x] `src/middleware.ts` (neue Datei) leitet `/` korrekt zu `/login` weiter fuer nicht-eingeloggte Nutzer
+- [ ] **BUG:** Root-Level `middleware.ts` (alte Datei) laesst nicht-eingeloggte Nutzer auf `/` durch und verlaesst sich auf `page.tsx` Redirect (siehe CLEANUP-BUG-1)
+- [x] Effektives Verhalten: Nicht-eingeloggte Nutzer landen auf `/login` (ueber Root-Middleware -> page.tsx -> redirect)
+- [x] Eingeloggte Nutzer auf `/` werden zu `/projekte` weitergeleitet (Root-Middleware Zeile 82-84)
+
+**PARTIAL PASS** (funktioniert, aber durch Umweg ueber zwei Middleware-Dateien)
+
+### Zusaetzliche Pruefungen
+
+#### Verwaiste Assets
+- [ ] **BUG:** `hero-2.jpg`, `hero-3.jpg`, `hero-4.jpg`, `hero-5.jpg` in `/public/images/` werden nirgends mehr referenziert (siehe CLEANUP-BUG-2)
+- [x] `hero-1.jpg` wird noch von `auth-layout.tsx`, `impressum/page.tsx`, `datenschutz/page.tsx` verwendet -- darf NICHT geloescht werden
+
+#### Build-Validierung
+- [x] `npm run build` kompiliert erfolgreich ohne Fehler
+- [x] 17 Seiten generiert, keine TypeScript- oder Lint-Fehler
+- [x] Next.js 16 gibt Deprecation-Warnung fuer "middleware" (soll "proxy" heissen), aber kein funktionaler Fehler
+
+### Bugs Found (Cleanup)
+
+#### CLEANUP-BUG-1: Zwei Middleware-Dateien vorhanden (Konflikpotenzial)
+- **Severity:** High
+- **Beschreibung:** Es existieren zwei Middleware-Dateien:
+  1. `middleware.ts` (Root-Level, 3174 Bytes, zuletzt geaendert 28.03.) -- DIESE wird von Next.js verwendet
+  2. `src/middleware.ts` (1747 Bytes, zuletzt geaendert 29.03.) -- wird von Next.js IGNORIERT
+- **Problem:** Die Root-Middleware enthaelt noch die alte Landing-Page-Logik (Zeile 80-86): Nicht-eingeloggte Nutzer auf `/` werden durchgelassen statt zu `/login` weitergeleitet. Die `page.tsx` faengt das zwar ab (Server-Side redirect), aber das ist ein unnoetig fragiler Umweg. Die `src/middleware.ts` hat die korrekte, schlankere Logik, wird aber nicht verwendet.
+- **Steps to Reproduce:**
+  1. Oeffne `/` als nicht-eingeloggter Nutzer
+  2. Root-Middleware laesst die Anfrage durch (return supabaseResponse)
+  3. page.tsx fuehrt Server-Side redirect('/login') aus
+  4. Ergebnis: Funktioniert, aber ueber zwei Hops statt einem
+- **Root Cause:** Bei der Deprecation wurde eine neue Middleware in `src/` erstellt, aber die alte Root-Level-Datei nicht entfernt. Next.js bevorzugt die Root-Level-Datei.
+- **Empfehlung:** Root-Level `middleware.ts` loeschen und nur `src/middleware.ts` behalten, ODER umgekehrt. Es darf nur EINE Middleware-Datei geben.
+- **Priority:** Hoch -- potenzielle Quelle fuer Verwirrung und Bugs, da Aenderungen an der falschen Datei keine Wirkung haben
+
+#### CLEANUP-BUG-2: Verwaiste Hero-Bilder (hero-2 bis hero-5)
+- **Severity:** Low
+- **Beschreibung:** Die Dateien `hero-2.jpg`, `hero-3.jpg`, `hero-4.jpg`, `hero-5.jpg` in `/public/images/` werden nirgends im Code referenziert. Sie waren Teil des Landing-Page-Karussells, das entfernt wurde.
+- **Steps to Reproduce:**
+  1. Suche nach `hero-2.jpg` (oder 3, 4, 5) im gesamten `src/`-Verzeichnis
+  2. 0 Treffer
+- **Auswirkung:** Keine funktionale Auswirkung, aber unnoetig aufgeblaehtes Repository (Bilder sind typischerweise gross)
+- **Priority:** Niedrig -- Cleanup bei Gelegenheit
+
+### Summary (Deprecation Check)
+- **Pruefkriterien:** 3/4 bestanden, 1 teilweise bestanden
+- **Bugs Found:** 2 (1 hoch, 1 niedrig)
+- **Kernaussage:** Der Landing-Page-Code (Komponenten, Imports, JSX) wurde sauber entfernt. `page.tsx` leitet korrekt weiter. Zwei Probleme bleiben:
+  1. **CLEANUP-BUG-1 (Hoch):** Zwei Middleware-Dateien existieren gleichzeitig. Die Root-Level-Datei wird von Next.js bevorzugt und enthaelt veraltete Logik. Die neuere `src/middleware.ts` wird ignoriert. Muss bereinigt werden.
+  2. **CLEANUP-BUG-2 (Niedrig):** 4 verwaiste Hero-Bilder koennen bei Gelegenheit geloescht werden.
+- **Production Ready:** NEIN -- CLEANUP-BUG-1 muss zuerst behoben werden.

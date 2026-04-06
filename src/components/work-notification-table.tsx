@@ -1,10 +1,11 @@
 'use client'
 
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useCallback, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { ArbeitsZeitCell } from '@/components/aa-time-input'
 import type { KWInfo } from '@/lib/kw-utils'
 import type { Project } from '@/lib/validations/project'
-import type { WorkNotificationRow } from '@/app/projekte/[id]/arbeitsanmeldung/page'
+import type { WorkNotificationRow } from '@/lib/validations/work-notification'
 
 interface WorkNotificationTableProps {
   rows: WorkNotificationRow[]
@@ -12,6 +13,8 @@ interface WorkNotificationTableProps {
   project: Project | null
   logo: { url: string; x: number; y: number; size: number } | null
   companyInfo: { name: string | null; adr: string | null }
+  onLogoPositionChange?: (x: number, y: number) => void
+  onLogoPositionSave?: (x: number, y: number) => void
   disabledDays: Set<number>
   activeDays: Set<number>
   equipmentCategories?: string[]
@@ -43,9 +46,6 @@ function parseMachines(raw: string | null): MachineEntry[] {
   return []
 }
 
-function machinesToText(raw: string | null): string {
-  return parseMachines(raw).map(e => e.anz > 1 ? `${e.name} ×${e.anz}` : e.name).join('\n')
-}
 
 // Auto-resize textarea helper
 function autoResize(el: HTMLTextAreaElement) {
@@ -67,10 +67,37 @@ function AutoTextarea({
   fillHeight?: boolean
 }) {
   const ref = useRef<HTMLTextAreaElement>(null)
+  // Letzter Wert der noch in die Zelle gepasst hat
+  const lastFittingValue = useRef(value)
 
   useEffect(() => {
     if (ref.current && !fillHeight) autoResize(ref.current)
   }, [value, fillHeight])
+
+  // Wert von außen (z.B. Initialisierung) → lastFittingValue nachziehen
+  useEffect(() => {
+    lastFittingValue.current = value
+  }, [value])
+
+  const handleChange = useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const newVal = e.target.value
+    if (!fillHeight) {
+      onChange(newVal)
+      autoResize(e.currentTarget)
+      return
+    }
+    // fillHeight: Overflow synchron prüfen — DOM hat bereits den neuen Text,
+    // scrollHeight ist deshalb schon korrekt. onChange erst aufrufen wenn Inhalt passt.
+    const el = e.currentTarget
+    if (el.scrollHeight > el.clientHeight + 2) {
+      // Inhalt passt nicht → DOM zurücksetzen, kein State-Update
+      el.value = lastFittingValue.current
+      el.setSelectionRange(lastFittingValue.current.length, lastFittingValue.current.length)
+      return
+    }
+    lastFittingValue.current = newVal
+    onChange(newVal)
+  }, [fillHeight, onChange])
 
   return (
     <textarea
@@ -79,12 +106,12 @@ function AutoTextarea({
       placeholder={placeholder}
       disabled={disabled}
       rows={1}
-      onChange={e => { onChange(e.target.value); if (!fillHeight) autoResize(e.currentTarget) }}
+      onChange={handleChange}
       onBlur={onBlur}
       aria-label={ariaLabel}
       style={{
         resize: 'none',
-        overflow: fillHeight ? 'auto' : 'hidden',
+        overflow: 'hidden',
         width: '100%',
         height: fillHeight ? '100%' : 'auto',
         background: 'transparent', border: '1px solid #ddd', borderRadius: '4px',
@@ -94,6 +121,154 @@ function AutoTextarea({
         ...style,
       }}
     />
+  )
+}
+
+// --- MachineListCell ---
+const MACHINE_SLOTS = 5
+
+function slotsFromValue(raw: string | null): string[] {
+  const entries = parseMachines(raw)
+  const slots = Array<string>(MACHINE_SLOTS).fill('')
+  entries.slice(0, MACHINE_SLOTS).forEach((e, i) => {
+    slots[i] = e.anz > 1 ? `${e.name} ×${e.anz}` : e.name
+  })
+  return slots
+}
+
+function slotsToValue(slots: string[]): string | null {
+  const filled = slots.map(s => s.trim()).filter(Boolean)
+  if (filled.length === 0) return null
+  return JSON.stringify(filled.map(s => {
+    const m = s.match(/^(.+)\s×(\d+)$/)
+    return m ? { name: m[1], anz: parseInt(m[2]) } : { name: s, anz: 1 }
+  }))
+}
+
+function MachineListCell({
+  value, equipmentCategories, disabled, onChange, onBlur,
+}: {
+  value: string | null
+  equipmentCategories: string[]
+  disabled: boolean
+  onChange: (v: string | null) => void
+  onBlur: () => void
+}) {
+  const [slots, setSlots] = useState<string[]>(() => slotsFromValue(value))
+  const [pickerIndex, setPickerIndex] = useState<number | null>(null)
+  const [pickerPos, setPickerPos] = useState<{ top: number; left: number } | null>(null)
+  const btnRefs = useRef<(HTMLButtonElement | null)[]>([])
+  const pickerRef = useRef<HTMLDivElement>(null)
+
+  // Sync from outside (e.g. initial load / copy-from-previous)
+  useEffect(() => { setSlots(slotsFromValue(value)) }, [value])
+
+  // Close picker on outside click
+  useEffect(() => {
+    if (pickerIndex === null) return
+    const handle = (e: MouseEvent) => {
+      const btn = btnRefs.current[pickerIndex!]
+      if (
+        pickerRef.current && !pickerRef.current.contains(e.target as Node) &&
+        btn && !btn.contains(e.target as Node)
+      ) setPickerIndex(null)
+    }
+    document.addEventListener('mousedown', handle)
+    return () => document.removeEventListener('mousedown', handle)
+  }, [pickerIndex])
+
+  const updateSlot = useCallback((i: number, text: string) => {
+    const next = [...slots]
+    next[i] = text
+    setSlots(next)
+    onChange(slotsToValue(next))
+  }, [slots, onChange])
+
+  const pickForSlot = useCallback((i: number, cat: string) => {
+    updateSlot(i, cat)
+    onBlur()
+    setPickerIndex(null)
+  }, [updateSlot, onBlur])
+
+  const openPicker = (i: number) => {
+    const btn = btnRefs.current[i]
+    if (btn) {
+      const rect = btn.getBoundingClientRect()
+      setPickerPos({ top: rect.bottom + window.scrollY + 4, left: rect.left + window.scrollX })
+    }
+    setPickerIndex(prev => prev === i ? null : i)
+  }
+
+  return (
+    <div style={{ height: '100%', padding: '2px 3px', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', justifyContent: 'space-around', overflow: 'hidden' }}>
+      {slots.map((slot, i) => (
+        <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '3px', minHeight: 0 }}>
+          {/* Plus button per line */}
+          {!disabled && (
+            <button
+              ref={el => { btnRefs.current[i] = el }}
+              data-no-print="true"
+              onClick={() => openPicker(i)}
+              style={{
+                width: '11px', height: '11px', borderRadius: '50%', flexShrink: 0,
+                border: `1px solid ${pickerIndex === i ? '#555' : '#aaa'}`,
+                background: pickerIndex === i ? '#e0e0e0' : 'transparent',
+                cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                fontSize: '8pt', color: '#777', padding: 0, lineHeight: 1,
+              }}
+            >+</button>
+          )}
+          {/* Inline text input */}
+          <input
+            value={slot}
+            placeholder=""
+            disabled={disabled}
+            onChange={e => updateSlot(i, e.target.value)}
+            onBlur={onBlur}
+            style={{
+              flex: 1, minWidth: 0, border: 'none', borderBottom: '1px solid #ccc',
+              background: 'transparent', outline: 'none',
+              fontSize: '6pt', fontFamily: 'var(--font-ibm-plex-sans), sans-serif',
+              color: '#222', padding: '0 2px', lineHeight: 1.4,
+            }}
+          />
+        </div>
+      ))}
+
+      {/* Picker portal */}
+      {pickerIndex !== null && pickerPos && typeof document !== 'undefined' && createPortal(
+        <div
+          ref={pickerRef}
+          data-no-print="true"
+          style={{
+            position: 'absolute', top: pickerPos.top, left: pickerPos.left,
+            zIndex: 9999, background: '#fff', border: '1px solid #ddd',
+            borderRadius: '8px', padding: '8px', boxShadow: '0 4px 16px rgba(0,0,0,0.15)',
+            minWidth: '160px', maxWidth: '220px',
+            fontFamily: 'var(--font-ibm-plex-sans), sans-serif',
+          }}
+        >
+          {equipmentCategories.length > 0 && (
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
+              {equipmentCategories.map(cat => (
+                <button key={cat} onClick={() => pickForSlot(pickerIndex!, cat)} style={{
+                  padding: '3px 10px', borderRadius: '99px',
+                  border: '1px solid #ddd', background: '#f5f5f5', color: '#333',
+                  fontSize: '7pt', cursor: 'pointer', whiteSpace: 'nowrap',
+                  fontFamily: 'var(--font-ibm-plex-sans), sans-serif',
+                }}>
+                  {cat}
+                </button>
+              ))}
+            </div>
+          )}
+          {equipmentCategories.length === 0 && (
+            <span style={{ fontSize: '7pt', color: '#aaa' }}>Keine Geräte in Projekteinstellungen hinterlegt.</span>
+          )}
+        </div>,
+        document.body
+      )}
+    </div>
   )
 }
 
@@ -133,6 +308,33 @@ const TH_STYLE: React.CSSProperties = {
   fontWeight: 600, whiteSpace: 'nowrap', borderRight: '1px solid rgba(255,255,255,0.15)',
 }
 
+// --- Print-friendly checkbox (HTML input[type=checkbox] wird im Druck unsichtbar durch appearance:none) ---
+function CheckOption({ label, checked, disabled, onSelect }: {
+  label: string
+  checked: boolean
+  disabled: boolean
+  onSelect: () => void
+}) {
+  return (
+    <div
+      style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2px', cursor: disabled ? 'default' : 'pointer' }}
+      onClick={() => !disabled && onSelect()}
+    >
+      <span style={{ fontSize: '5.5pt', color: '#888', fontFamily: "var(--font-ibm-plex-sans), sans-serif" }}>{label}</span>
+      <div style={{
+        width: '10px', height: '10px',
+        border: `1px solid ${checked ? '#1a2040' : '#bbb'}`,
+        borderRadius: '2px',
+        background: checked ? '#1a2040' : 'transparent',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        flexShrink: 0,
+      }}>
+        {checked && <span style={{ color: '#fff', fontSize: '8pt', lineHeight: 1, fontWeight: 700, marginTop: '-1px' }}>✓</span>}
+      </div>
+    </div>
+  )
+}
+
 // --- Main component ---
 const ADD_BTN: React.CSSProperties = {
   padding: '2px 8px', borderRadius: '3px', border: '1px dashed #bbb',
@@ -146,7 +348,35 @@ const COPY_BTN: React.CSSProperties = {
 export function WorkNotificationTable({
   rows, week, project, logo, companyInfo, disabledDays, activeDays, equipmentCategories,
   onUpdateRow, onBlurSave, onFieldBlur, onClearShift, onCheckboxChange, onAddDay, onRemoveDay, onSetShiftTimes,
+  onLogoPositionChange, onLogoPositionSave,
 }: WorkNotificationTableProps) {
+  const containerRef = useRef<HTMLDivElement>(null)
+  const [isDraggingLogo, setIsDraggingLogo] = useState(false)
+
+  const handleLogoMouseDown = useCallback((e: React.MouseEvent) => {
+    if (!onLogoPositionChange || !containerRef.current) return
+    e.preventDefault()
+    setIsDraggingLogo(true)
+
+    const rect = containerRef.current.getBoundingClientRect()
+
+    let lastX = logo!.x
+    let lastY = logo!.y
+    const onMove = (ev: MouseEvent) => {
+      lastX = Math.max(0, Math.min(1, (ev.clientX - rect.left) / rect.width))
+      lastY = Math.max(0, Math.min(1, (ev.clientY - rect.top) / rect.height))
+      onLogoPositionChange(lastX, lastY)
+    }
+    const onUp = () => {
+      setIsDraggingLogo(false)
+      onLogoPositionSave?.(lastX, lastY)
+      window.removeEventListener('mousemove', onMove)
+      window.removeEventListener('mouseup', onUp)
+    }
+    window.addEventListener('mousemove', onMove)
+    window.addEventListener('mouseup', onUp)
+  }, [onLogoPositionChange, onLogoPositionSave])
+
   if (!week) {
     return <div style={{ padding: '40px', textAlign: 'center', color: '#7a85a8' }}>Keine Kalenderwoche ausgewählt.</div>
   }
@@ -157,20 +387,32 @@ export function WorkNotificationTable({
 
   return (
     <div
+      ref={containerRef}
       style={{
         width: '100%', height: '100%', color: '#222',
         padding: '7mm 8mm', position: 'relative',
         overflow: 'hidden', fontFamily: "var(--font-ibm-plex-sans), sans-serif",
+        cursor: isDraggingLogo ? 'grabbing' : 'default',
       }}
     >
 
       {/* Logo */}
       {logo && (
-        <img src={logo.url} alt="" style={{
-          position: 'absolute', left: `${logo.x * 100}%`, top: `${logo.y * 100}%`,
-          transform: 'translate(-50%, -50%)', width: `${logo.size * 100}%`,
-          pointerEvents: 'none', opacity: 0.15,
-        }} />
+        <img
+          src={logo.url}
+          alt=""
+          draggable={false}
+          onMouseDown={handleLogoMouseDown}
+          style={{
+            position: 'absolute', left: `${logo.x * 100}%`, top: `${logo.y * 100}%`,
+            transform: 'translate(-50%, -50%)', width: `${logo.size * 100}%`,
+            opacity: 0.15,
+            cursor: onLogoPositionChange ? (isDraggingLogo ? 'grabbing' : 'grab') : 'default',
+            pointerEvents: onLogoPositionChange ? 'auto' : 'none',
+            userSelect: 'none',
+            zIndex: onLogoPositionChange ? 10 : 0,
+          }}
+        />
       )}
 
       {/* Header */}
@@ -229,14 +471,16 @@ export function WorkNotificationTable({
 
                 {isActive ? (
                   <>
-                    <td style={{ ...TD_STYLE, ...COL_STYLES.arbeitszeit }}>
-                      <ArbeitsZeitCell
-                        dayStart={row.day_start} dayEnd={row.day_end}
-                        nightStart={row.night_start} nightEnd={row.night_end}
-                        disabled={isDisabled} weekdayNr={row.weekday_nr}
-                        onFieldBlur={onFieldBlur} onClearShift={onClearShift}
-                        onSetShiftTimes={onSetShiftTimes}
-                      />
+                    <td style={{ ...TD_STYLE, ...COL_STYLES.arbeitszeit, height: '1px', padding: 0, position: 'relative' }}>
+                      <div style={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, overflow: 'hidden', padding: '10px 4px', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+                        <ArbeitsZeitCell
+                          dayStart={row.day_start} dayEnd={row.day_end}
+                          nightStart={row.night_start} nightEnd={row.night_end}
+                          disabled={isDisabled} weekdayNr={row.weekday_nr}
+                          onFieldBlur={onFieldBlur} onClearShift={onClearShift}
+                          onSetShiftTimes={onSetShiftTimes}
+                        />
+                      </div>
                     </td>
                     <td style={{ ...TD_STYLE, ...COL_STYLES.ort, height: '1px', padding: 0 }}>
                       <div style={{ height: '100%', padding: '10px 4px', boxSizing: 'border-box', display: 'flex', flexDirection: 'column' }}>
@@ -263,15 +507,13 @@ export function WorkNotificationTable({
                       />
                     </td>
                     <td style={{ ...TD_STYLE, ...COL_STYLES.maschinen, height: '1px', padding: 0 }}>
-                      <div style={{ height: '100%', padding: '4px', boxSizing: 'border-box', display: 'flex', flexDirection: 'column' }}>
-                        <AutoTextarea fillHeight value={machinesToText(row.machines)} placeholder="Maschinen..."
-                          disabled={isDisabled}
-                          onChange={v => onUpdateRow(row.weekday_nr, 'machines', v || null)}
-                          onBlur={() => onBlurSave(row.weekday_nr)}
-                          style={{ fontSize: '6pt' }}
-                          ariaLabel={`Maschinen ${row.weekday_name}`}
-                        />
-                      </div>
+                      <MachineListCell
+                        value={row.machines}
+                        equipmentCategories={equipCats}
+                        disabled={isDisabled}
+                        onChange={v => onUpdateRow(row.weekday_nr, 'machines', v)}
+                        onBlur={() => onBlurSave(row.weekday_nr)}
+                      />
                     </td>
                     <td style={{ ...TD_STYLE, ...COL_STYLES.arbeiten, height: '1px', padding: 0 }}>
                       <div style={{ height: '100%', padding: '10px 4px', boxSizing: 'border-box', display: 'flex', flexDirection: 'column' }}>
@@ -283,61 +525,37 @@ export function WorkNotificationTable({
                         />
                       </div>
                     </td>
-                    <td style={{ ...TD_STYLE, ...COL_STYLES.sicherungsplan }}>
-                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' }}>
-                        <div style={{ display: 'flex', gap: '4px' }}>
-                          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2px' }}>
-                            <span style={{ fontSize: '5.5pt', color: '#888', fontFamily: "var(--font-ibm-plex-sans), sans-serif" }}>Ja</span>
-                            <input type="checkbox" checked={row.safety_plan_enabled}
-                              onChange={e => { if (e.target.checked) onCheckboxChange(row.weekday_nr, 'safety_plan_enabled', true) }}
-                              disabled={isDisabled} style={{ accentColor: '#1a2040', cursor: isDisabled ? 'not-allowed' : 'pointer' }}
-                              aria-label={`SIPLA Ja ${row.weekday_name}`}
-                            />
-                          </div>
-                          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2px' }}>
-                            <span style={{ fontSize: '5.5pt', color: '#888', fontFamily: "var(--font-ibm-plex-sans), sans-serif" }}>Nein</span>
-                            <input type="checkbox" checked={!row.safety_plan_enabled}
-                              onChange={e => { if (e.target.checked) onCheckboxChange(row.weekday_nr, 'safety_plan_enabled', false) }}
-                              disabled={isDisabled} style={{ accentColor: '#1a2040', cursor: isDisabled ? 'not-allowed' : 'pointer' }}
-                              aria-label={`SIPLA Nein ${row.weekday_name}`}
-                            />
-                          </div>
+                    <td style={{ ...TD_STYLE, ...COL_STYLES.sicherungsplan, height: '1px', padding: 0 }}>
+                      <div style={{ height: '100%', padding: '4px', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px', overflow: 'hidden' }}>
+                        <div style={{ display: 'flex', gap: '4px', flexShrink: 0 }}>
+                          <CheckOption label="Ja" checked={row.safety_plan_enabled} disabled={isDisabled}
+                            onSelect={() => onCheckboxChange(row.weekday_nr, 'safety_plan_enabled', true)} />
+                          <CheckOption label="Nein" checked={!row.safety_plan_enabled} disabled={isDisabled}
+                            onSelect={() => onCheckboxChange(row.weekday_nr, 'safety_plan_enabled', false)} />
                         </div>
                         {row.safety_plan_enabled && (
-                          <AutoTextarea value={row.safety_plan_number ?? ''} placeholder="Nr." disabled={isDisabled}
+                          <AutoTextarea fillHeight value={row.safety_plan_number ?? ''} placeholder="Nr." disabled={isDisabled}
                             onChange={v => onUpdateRow(row.weekday_nr, 'safety_plan_number', v || null)}
                             onBlur={() => onBlurSave(row.weekday_nr)}
-                            style={{ fontSize: '6.5pt', textAlign: 'center', width: '52px' }}
+                            style={{ fontSize: '6.5pt', textAlign: 'center', width: '52px', flex: 1, minHeight: 0 }}
                             ariaLabel={`SIPLA-Nr. ${row.weekday_name}`}
                           />
                         )}
                       </div>
                     </td>
-                    <td style={{ ...TD_STYLE, ...COL_STYLES.gleisbereich }}>
-                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' }}>
-                        <div style={{ display: 'flex', gap: '4px' }}>
-                          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2px' }}>
-                            <span style={{ fontSize: '5.5pt', color: '#888', fontFamily: "var(--font-ibm-plex-sans), sans-serif" }}>Ja</span>
-                            <input type="checkbox" checked={row.track_work_enabled}
-                              onChange={e => { if (e.target.checked) onCheckboxChange(row.weekday_nr, 'track_work_enabled', true) }}
-                              disabled={isDisabled} style={{ accentColor: '#1a2040', cursor: isDisabled ? 'not-allowed' : 'pointer' }}
-                              aria-label={`Gleisbereich Ja ${row.weekday_name}`}
-                            />
-                          </div>
-                          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2px' }}>
-                            <span style={{ fontSize: '5.5pt', color: '#888', fontFamily: "var(--font-ibm-plex-sans), sans-serif" }}>Nein</span>
-                            <input type="checkbox" checked={!row.track_work_enabled}
-                              onChange={e => { if (e.target.checked) onCheckboxChange(row.weekday_nr, 'track_work_enabled', false) }}
-                              disabled={isDisabled} style={{ accentColor: '#1a2040', cursor: isDisabled ? 'not-allowed' : 'pointer' }}
-                              aria-label={`Gleisbereich Nein ${row.weekday_name}`}
-                            />
-                          </div>
+                    <td style={{ ...TD_STYLE, ...COL_STYLES.gleisbereich, height: '1px', padding: 0 }}>
+                      <div style={{ height: '100%', padding: '4px', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px', overflow: 'hidden' }}>
+                        <div style={{ display: 'flex', gap: '4px', flexShrink: 0 }}>
+                          <CheckOption label="Ja" checked={row.track_work_enabled} disabled={isDisabled}
+                            onSelect={() => onCheckboxChange(row.weekday_nr, 'track_work_enabled', true)} />
+                          <CheckOption label="Nein" checked={!row.track_work_enabled} disabled={isDisabled}
+                            onSelect={() => onCheckboxChange(row.weekday_nr, 'track_work_enabled', false)} />
                         </div>
                         {row.track_work_enabled && (
-                          <AutoTextarea value={row.betra_number ?? ''} placeholder="BETRA" disabled={isDisabled}
+                          <AutoTextarea fillHeight value={row.betra_number ?? ''} placeholder="BETRA" disabled={isDisabled}
                             onChange={v => onUpdateRow(row.weekday_nr, 'betra_number', v || null)}
                             onBlur={() => onBlurSave(row.weekday_nr)}
-                            style={{ fontSize: '6.5pt', textAlign: 'center', width: '62px' }}
+                            style={{ fontSize: '6.5pt', textAlign: 'center', width: '62px', flex: 1, minHeight: 0 }}
                             ariaLabel={`BETRA-Nr. ${row.weekday_name}`}
                           />
                         )}

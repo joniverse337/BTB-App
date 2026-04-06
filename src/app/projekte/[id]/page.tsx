@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useState } from 'react'
-import { useParams } from 'next/navigation'
+import { useParams, useRouter, useSearchParams } from 'next/navigation'
 import { AlertCircle } from 'lucide-react'
 import { Skeleton } from '@/components/ui/skeleton'
 import { ProjectDetailHeader } from '@/components/project-detail-header'
@@ -17,16 +17,16 @@ import { DEFAULT_WORKER_CATEGORIES, DEFAULT_EQUIPMENT_CATEGORIES } from '@/lib/v
 import { formatShiftDate } from '@/lib/kw-utils'
 import { toast } from 'sonner'
 
-const ZOOM_STORAGE_KEY = 'btb-zoom'
+import { ZOOM_STORAGE_KEY, ZOOM_DEFAULT, ZOOM_MIN, ZOOM_MAX } from '@/lib/constants'
 
 function getStoredZoom(): number {
-  if (typeof window === 'undefined') return 75
+  if (typeof window === 'undefined') return ZOOM_DEFAULT
   const stored = localStorage.getItem(ZOOM_STORAGE_KEY)
   if (stored) {
     const num = parseInt(stored, 10)
-    if (num >= 40 && num <= 100) return num
+    if (num >= ZOOM_MIN && num <= ZOOM_MAX) return num
   }
-  return 75
+  return ZOOM_DEFAULT
 }
 
 function escHtml(str: string | null | undefined): string {
@@ -147,14 +147,14 @@ function buildShiftPageDiv(shift: ShiftWithDetails, date: Date, project: Project
 
   <div class="section">
     <div class="st">Ausgeführte Arbeiten</div>
-    <div class="textarea">${shift.arb || ''}</div>
+    <div class="textarea">${escHtml(shift.arb) || ''}</div>
   </div>
 
   <div class="spacer"></div>
 
   <div class="section">
     <div class="st">Vorkommnisse / Behinderungen</div>
-    <div class="textarea">${shift.vor || ''}</div>
+    <div class="textarea">${escHtml(shift.vor) || ''}</div>
   </div>
 
   <div class="sig">
@@ -185,6 +185,8 @@ ${buildShiftPageDiv(shift, date, project, false, logo)}
 export default function ProjectDetailPage() {
   const params = useParams()
   const projectId = params.id as string
+  const router = useRouter()
+  const searchParams = useSearchParams()
 
   // Project state
   const [project, setProject] = useState<Project | null>(null)
@@ -197,6 +199,9 @@ export default function ProjectDetailPage() {
   // Shifts state
   const [shifts, setShifts] = useState<ShiftWithDetails[]>([])
   const [isLoadingShifts, setIsLoadingShifts] = useState(false)
+
+  // AA shift keys for current KW: "YYYY-MM-DD:tag" | "YYYY-MM-DD:nacht"
+  const [aaShiftKeys, setAaShiftKeys] = useState<Set<string>>(new Set())
 
   // UI state
   const [zoom, setZoom] = useState(75)
@@ -254,8 +259,14 @@ export default function ProjectDetailPage() {
     }
     const computedWeeks = getKWsForRange(project.lz_von, project.lz_bis)
     setWeeks(computedWeeks)
-    setActiveKWIndex(getCurrentKWIndex(computedWeeks))
-  }, [project])
+    const kwParam = searchParams.get('kw')
+    if (kwParam) {
+      const idx = computedWeeks.findIndex(w => String(w.kw) === kwParam)
+      setActiveKWIndex(idx >= 0 ? idx : getCurrentKWIndex(computedWeeks))
+    } else {
+      setActiveKWIndex(getCurrentKWIndex(computedWeeks))
+    }
+  }, [project, searchParams])
 
   // Fetch project settings (PROJ-6: firma/adr override) + categories
   useEffect(() => {
@@ -423,6 +434,32 @@ export default function ProjectDetailPage() {
   useEffect(() => {
     if (project) fetchAllShifts()
   }, [project, fetchAllShifts])
+
+  useEffect(() => {
+    const activeWeek = weeks[activeKWIndex]
+    if (!project || !activeWeek) { setAaShiftKeys(new Set()); return }
+
+    let cancelled = false
+    const supabase = createClient()
+
+    supabase
+      .from('work_notifications')
+      .select('date, day_start, night_start')
+      .eq('project_id', projectId)
+      .eq('year', activeWeek.year)
+      .eq('calendar_week', activeWeek.kw)
+      .then(({ data, error }) => {
+        if (cancelled || error) return
+        const keys = new Set<string>()
+        for (const row of data ?? []) {
+          if (row.day_start) keys.add(`${row.date}:tag`)
+          if (row.night_start) keys.add(`${row.date}:nacht`)
+        }
+        setAaShiftKeys(keys)
+      })
+
+    return () => { cancelled = true }
+  }, [project, projectId, weeks, activeKWIndex])
 
   // --- Shift CRUD ---
 
@@ -764,6 +801,43 @@ export default function ProjectDetailPage() {
     }
   }
 
+  // --- Arbeitsanmeldung: BTBs erstellen ---
+
+  const handleCreateFromAA = async (datum: string, typ: 'tag' | 'nacht') => {
+    const activeWeek = weeks[activeKWIndex]
+    if (!activeWeek) return
+
+    try {
+      const res = await fetch('/api/work-notifications/create-shifts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          project_id: projectId,
+          year: activeWeek.year,
+          calendar_week: activeWeek.kw,
+          date: datum,
+          typ,
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        toast.error(data.error ?? 'Fehler beim Erstellen der BTBs.')
+        return
+      }
+      if (data.skipped > 0 && data.created === 0) {
+        toast.info('BTBs wurden bereits erstellt — bestehende Einträge wurden nicht überschrieben.')
+      } else if (data.skipped > 0) {
+        toast.success(`${data.created} BTB(s) erstellt. ${data.skipped} bereits vorhanden, nicht überschrieben.`)
+      } else {
+        toast.success(`${data.created} BTB(s) aus Arbeitsanmeldung erstellt.`)
+      }
+      // Reload all shifts so grid and dot raster are up to date
+      await fetchAllShifts()
+    } catch {
+      toast.error('Fehler beim Erstellen der BTBs.')
+    }
+  }
+
   // --- Print ---
 
   const handlePrintShift = (shift: ShiftWithDetails, date: Date) => {
@@ -894,7 +968,11 @@ ${pages}
         <KWNavigation
           weeks={weeks}
           activeIndex={activeKWIndex}
-          onSelectWeek={setActiveKWIndex}
+          onSelectWeek={(idx) => {
+            setActiveKWIndex(idx)
+            const kw = weeks[idx]?.kw
+            if (kw) router.replace(`/projekte/${projectId}?kw=${kw}`, { scroll: false })
+          }}
           shifts={shifts}
           zoom={zoom}
           onZoomChange={handleZoomChange}
@@ -930,6 +1008,8 @@ ${pages}
               onUpdateEquipment={handleUpdateEquipment}
               onDeleteEquipment={handleDeleteEquipment}
               onPrintShift={handlePrintShift}
+              aaShiftKeys={aaShiftKeys}
+              onCreateFromAA={handleCreateFromAA}
             />
           )}
         </div>

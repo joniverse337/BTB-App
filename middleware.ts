@@ -1,23 +1,21 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
+import { RATE_LIMIT } from '@/lib/constants'
 
 // In-memory rate limiter for auth page access
 // Note: per-instance only — Supabase's built-in limits cover the actual API calls
 const rateLimitMap = new Map<string, { count: number; resetAt: number }>()
-
-const RATE_LIMIT_MAX = 20
-const RATE_LIMIT_WINDOW_MS = 15 * 60 * 1000 // 15 minutes
 
 function isRateLimited(ip: string): boolean {
   const now = Date.now()
   const entry = rateLimitMap.get(ip)
 
   if (!entry || now > entry.resetAt) {
-    rateLimitMap.set(ip, { count: 1, resetAt: now + RATE_LIMIT_WINDOW_MS })
+    rateLimitMap.set(ip, { count: 1, resetAt: now + RATE_LIMIT.AUTH_WINDOW_MS })
     return false
   }
 
-  if (entry.count >= RATE_LIMIT_MAX) {
+  if (entry.count >= RATE_LIMIT.AUTH_MAX) {
     return true
   }
 
@@ -70,19 +68,25 @@ export async function middleware(request: NextRequest) {
     }
   )
 
-  const { data: { user } } = await supabase.auth.getUser()
+  const { data: { user }, error: authError } = await supabase.auth.getUser()
 
   // Skip middleware for callback route
   if (isCallbackRoute) {
     return supabaseResponse
   }
 
-  // Landing page: logged in → /projekte, not logged in → show landing
+  // Invalid/expired refresh token → clear stale cookies and redirect to login
+  if (authError && !isAuthRoute && !isPublicRoute) {
+    const response = NextResponse.redirect(new URL('/login', request.url))
+    request.cookies.getAll()
+      .filter(c => c.name.startsWith('sb-'))
+      .forEach(c => response.cookies.delete(c.name))
+    return response
+  }
+
+  // Root: logged in → /projekte, not logged in → /login (no landing page)
   if (pathname === '/') {
-    if (user) {
-      return NextResponse.redirect(new URL('/projekte', request.url))
-    }
-    return supabaseResponse
+    return NextResponse.redirect(new URL(user ? '/projekte' : '/login', request.url))
   }
 
   // Auth pages (login/register/reset): logged in → /projekte

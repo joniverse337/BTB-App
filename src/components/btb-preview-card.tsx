@@ -15,7 +15,7 @@ interface BtbPreviewCardProps {
   projectNr: string | null
   projectAg: string | null
   onLogoPositionChange: (x: number, y: number) => void
-  onLogoPositionSave?: () => void
+  onLogoPositionSave?: (x: number, y: number) => void
   companyFallback?: CompanyFallback
   workerCategories?: string[]
   equipmentCategories?: string[]
@@ -38,25 +38,28 @@ export function BtbPreviewCard({
   const effectiveLogoUrl = settings.logo_url || companyFallback?.logoUrl || null
 
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
-    if (!effectiveLogoUrl) return
+    if (!effectiveLogoUrl || !cardRef.current) return
     e.preventDefault()
     setIsDragging(true)
-  }, [effectiveLogoUrl])
 
-  const handleMouseMove = useCallback((e: React.MouseEvent) => {
-    if (!isDragging || !cardRef.current) return
     const rect = cardRef.current.getBoundingClientRect()
-    const x = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width))
-    const y = Math.max(0, Math.min(1, (e.clientY - rect.top) / rect.height))
-    onLogoPositionChange(x, y)
-  }, [isDragging, onLogoPositionChange])
+    let lastX = settings.logo_x
+    let lastY = settings.logo_y
 
-  const handleMouseUp = useCallback(() => {
-    if (isDragging) {
-      setIsDragging(false)
-      onLogoPositionSave?.()
+    const onMove = (ev: MouseEvent) => {
+      lastX = Math.max(0, Math.min(1, (ev.clientX - rect.left) / rect.width))
+      lastY = Math.max(0, Math.min(1, (ev.clientY - rect.top) / rect.height))
+      onLogoPositionChange(lastX, lastY)
     }
-  }, [isDragging, onLogoPositionSave])
+    const onUp = () => {
+      setIsDragging(false)
+      onLogoPositionSave?.(lastX, lastY)
+      window.removeEventListener('mousemove', onMove)
+      window.removeEventListener('mouseup', onUp)
+    }
+    window.addEventListener('mousemove', onMove)
+    window.addEventListener('mouseup', onUp)
+  }, [effectiveLogoUrl, settings.logo_x, settings.logo_y, onLogoPositionChange, onLogoPositionSave])
 
   const firma = settings.firma || companyFallback?.firma || 'Firmenname'
   const adr = settings.adr || companyFallback?.adr || ''
@@ -76,9 +79,6 @@ export function BtbPreviewCard({
         ref={cardRef}
         className="relative aspect-[210/297] w-full overflow-hidden rounded-md border bg-white shadow-lg"
         style={{ cursor: isDragging ? 'grabbing' : 'default' }}
-        onMouseMove={handleMouseMove}
-        onMouseUp={handleMouseUp}
-        onMouseLeave={handleMouseUp}
       >
         {/* Logo watermark */}
         {effectiveLogoUrl && (

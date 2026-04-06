@@ -8,7 +8,6 @@
 - None (Basis für alle anderen Features)
 
 ## User Stories
-- Als Besucher möchte ich auf der Startseite (Landing Page) verstehen was die App macht, bevor ich mich registriere.
 - Als neuer Nutzer möchte ich mich mit E-Mail und Passwort registrieren, damit ich die App nutzen kann.
 - Als bestehender Nutzer möchte ich mich einloggen, damit ich meine Projekte und Berichte sehe.
 - Als eingeloggter Nutzer möchte ich mich ausloggen, damit mein Account auf fremden Geräten geschützt ist.
@@ -16,10 +15,14 @@
 - Als eingeloggter Nutzer werde ich nach Browser-Schließen automatisch wieder eingeloggt (Session-Persistenz).
 
 ## Acceptance Criteria
-- [x] Landing Page (/) ist öffentlich zugänglich und zeigt 3 kurze Sätze als Beschreibung z.B. "Dein Bautagesbericht – schnell erstellt, perfekt dokumentiert, einfach gemanagt"
-- [x] Landing Page hat einen "Jetzt starten" Button → leitet zu /register
-- [x] Landing Page hat einen "Einloggen" Button → leitet zu /login
-- [x] Eingeloggte Nutzer die / aufrufen werden direkt zu /projekte weitergeleitet
+
+### Login & Register Design
+- [ ] `/login` und `/register` haben das Hintergrundbild aus PROJ-0 als Seitenhintergrund
+- [ ] Das Login-/Register-Formular sitzt in einer leicht transparenten Box (analog zur Logo-Box der alten Landing Page)
+- [ ] Eingeloggte Nutzer die `/` aufrufen werden direkt zu `/projekte` weitergeleitet
+- [ ] Nicht eingeloggte Nutzer die `/` aufrufen werden zu `/login` weitergeleitet (keine Landing Page mehr)
+
+### Registrierung & Login
 - [x] Registrierung mit E-Mail + Passwort (min. 8 Zeichen) ist möglich
 - [x] Nach Registrierung wird eine Bestätigungs-E-Mail via Supabase verschickt
 - [x] Login mit korrekten Daten leitet auf die Projektübersicht weiter

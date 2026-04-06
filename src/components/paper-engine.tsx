@@ -1,7 +1,7 @@
 'use client'
 
 import { useRef } from 'react'
-import { Printer } from 'lucide-react'
+import { Printer, X } from 'lucide-react'
 
 // DIN A4 Abmessungen in mm
 const A4 = {
@@ -14,6 +14,8 @@ interface PaperEngineProps {
   zoom?: number
   /** Wird aufgerufen wenn der Nutzer auf Drucken klickt — Standard: window.print() */
   onPrint?: () => void
+  /** Wird aufgerufen wenn der Nutzer auf Löschen klickt — zeigt X-Button neben Druck-Button */
+  onDelete?: () => void
   children: React.ReactNode
 }
 
@@ -33,30 +35,18 @@ export function PaperEngine({
   orientation,
   zoom = 75,
   onPrint,
+  onDelete,
   children,
 }: PaperEngineProps) {
   const paperRef = useRef<HTMLDivElement>(null)
   const dims = A4[orientation]
 
   const handlePrint = () => {
-    // Injiziere @page size passend zur Orientierung — Browser kann sonst nicht
-    // automatisch zwischen Hoch- und Querformat wechseln
-    const styleEl = document.createElement('style')
-    styleEl.id = 'paper-engine-page-size'
-    styleEl.textContent = `@page { size: A4 ${orientation}; margin: 0; }`
-    document.head.appendChild(styleEl)
-
     if (onPrint) {
       onPrint()
     } else {
       window.print()
     }
-
-    // Aufräumen nach dem Drucken
-    setTimeout(() => {
-      const el = document.getElementById('paper-engine-page-size')
-      if (el) el.remove()
-    }, 1000)
   }
 
   return (
@@ -99,43 +89,68 @@ export function PaperEngine({
           {/* Layer 2 — das Overlay (von außen übergeben) */}
           {children}
 
-          {/* Print-Button — verschwindet beim Drucken */}
-          <button
+          {/* Schwebende Aktions-Buttons (Print + optional Delete) — verschwinden beim Drucken */}
+          <div
             data-no-print="true"
-            onClick={handlePrint}
-            title="Drucken (Strg+P)"
+            className="paper-engine-action-bar"
             style={{
               position: 'absolute',
               top: '8px',
               left: '50%',
               transform: 'translateX(-50%)',
               zIndex: 30,
-              background: 'rgba(23,28,40,0.92)',
-              border: '1px solid rgba(255,255,255,0.12)',
-              color: '#fff',
-              borderRadius: '4px',
-              width: '32px',
-              height: '32px',
-              cursor: 'pointer',
               display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
+              gap: '6px',
               opacity: 0,
               transition: 'opacity 0.15s',
             }}
-            onMouseEnter={e => (e.currentTarget.style.opacity = '1')}
-            onMouseLeave={e => (e.currentTarget.style.opacity = '0')}
-            // Eltern-Hover-Trick: Button wird beim Hover auf das Blatt sichtbar
-            className="paper-engine-print-btn"
           >
-            <Printer size={14} />
-          </button>
+            <button
+              onClick={handlePrint}
+              title="Drucken (Strg+P)"
+              style={{
+                background: 'rgba(23,28,40,0.92)',
+                border: '1px solid rgba(255,255,255,0.12)',
+                color: '#fff',
+                borderRadius: '4px',
+                width: '32px',
+                height: '32px',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <Printer size={14} />
+            </button>
+            {onDelete && (
+              <button
+                onClick={onDelete}
+                title="Löschen"
+                style={{
+                  background: 'rgba(23,28,40,0.92)',
+                  border: '1px solid rgba(255,255,255,0.12)',
+                  color: '#ff8080',
+                  borderRadius: '4px',
+                  width: '32px',
+                  height: '32px',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                <X size={14} strokeWidth={2.5} />
+              </button>
+            )}
+          </div>
         </div>
       </div>
 
       {/* Globaler Hover-Effekt: Print-Button erscheint wenn man über das Blatt fährt */}
       <style>{`
-        .paper-print-target:hover .paper-engine-print-btn {
+        @page { size: ${dims.width} ${dims.height}; margin: 0; }
+        .paper-print-target:hover .paper-engine-action-bar {
           opacity: 1 !important;
         }
       `}</style>

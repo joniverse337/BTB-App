@@ -1,5 +1,6 @@
 'use client'
 
+import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { ArrowLeft } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -7,9 +8,11 @@ import { SettingsSection } from '@/components/settings-section'
 import { PasswordChangeForm } from '@/components/password-change-form'
 import { EmailChangeForm } from '@/components/email-change-form'
 import { CompanySection } from '@/components/company-section'
+import { DeleteAccountDialog } from '@/components/delete-account-dialog'
 
 export default function EinstellungenPage() {
   const router = useRouter()
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
 
   return (
     <div className="min-h-screen">
@@ -41,6 +44,19 @@ export default function EinstellungenPage() {
             <EmailChangeForm />
             <hr className="border-border my-6" />
             <PasswordChangeForm />
+            <hr className="border-destructive/30 my-6" />
+            <div className="space-y-3 max-w-md">
+              <p className="text-sm font-medium">Account löschen</p>
+              <p className="text-xs text-muted-foreground">
+                Löscht deinen Account und alle zugehörigen Daten dauerhaft.
+              </p>
+              <Button
+                variant="destructive"
+                onClick={() => setDeleteDialogOpen(true)}
+              >
+                Account löschen
+              </Button>
+            </div>
           </SettingsSection>
 
           {/* Company Section */}
@@ -51,7 +67,13 @@ export default function EinstellungenPage() {
             <CompanySection />
           </SettingsSection>
         </div>
+
       </main>
+
+      <DeleteAccountDialog
+        open={deleteDialogOpen}
+        onOpenChange={setDeleteDialogOpen}
+      />
     </div>
   )
 }

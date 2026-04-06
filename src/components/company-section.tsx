@@ -8,7 +8,6 @@ import {
   Copy,
   Check,
   AlertCircle,
-  CheckCircle2,
   Loader2,
   ImageIcon,
   X,
@@ -44,6 +43,7 @@ import {
 } from '@/lib/validations/company'
 import { toast } from 'sonner'
 import { createClient } from '@/lib/supabase'
+import { FormAlert } from '@/components/form-alert'
 
 interface Company {
   id: string
@@ -124,11 +124,15 @@ export function CompanySection() {
   // Save a company field via API
   const saveCompanyField = useCallback(async (fields: Record<string, string | null>) => {
     try {
-      await fetch('/api/companies/update', {
+      const response = await fetch('/api/companies/update', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(fields),
       })
+      if (!response.ok) {
+        const result = await response.json().catch(() => ({}))
+        toast.error(result.error || 'Firmendaten konnten nicht gespeichert werden.')
+      }
     } catch {
       toast.error('Firmendaten konnten nicht gespeichert werden.')
     }
@@ -157,7 +161,7 @@ export function CompanySection() {
         .upload(filePath, file, { upsert: true })
 
       if (uploadError) {
-        console.error('Upload error:', uploadError)
+        toast.error('Logo-Upload fehlgeschlagen.')
         return
       }
 
@@ -170,7 +174,7 @@ export function CompanySection() {
       await saveCompanyField({ logo_url: logoUrl })
       setCompany((prev) => prev ? { ...prev, logo_url: logoUrl } : prev)
     } catch {
-      console.error('Logo upload failed')
+      toast.error('Logo-Upload fehlgeschlagen.')
     } finally {
       setIsUploading(false)
     }
@@ -189,7 +193,7 @@ export function CompanySection() {
       await saveCompanyField({ logo_url: null })
       setCompany((prev) => prev ? { ...prev, logo_url: null } : prev)
     } catch {
-      console.error('Logo delete failed')
+      toast.error('Logo konnte nicht gelöscht werden.')
     }
   }, [company, saveCompanyField])
 
@@ -384,21 +388,8 @@ export function CompanySection() {
 
   return (
     <div className="space-y-4">
-      {/* Success message */}
-      {actionSuccess && (
-        <div className="flex items-center gap-2 rounded-md border border-green-500/30 bg-green-500/10 px-4 py-3 text-sm text-green-400">
-          <CheckCircle2 className="h-4 w-4 shrink-0" />
-          <span>{actionSuccess}</span>
-        </div>
-      )}
-
-      {/* Error message */}
-      {actionError && (
-        <div className="flex items-center gap-2 rounded-md border border-destructive/50 bg-destructive/10 px-4 py-3 text-sm text-destructive">
-          <AlertCircle className="h-4 w-4 shrink-0" />
-          <span>{actionError}</span>
-        </div>
-      )}
+      <FormAlert type="success" message={actionSuccess} />
+      <FormAlert type="error" message={actionError} />
 
       {company ? (
         /* Connected to a company */

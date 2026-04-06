@@ -10,41 +10,7 @@ import {
   DEFAULT_EQUIPMENT_CATEGORIES,
 } from '@/lib/validations/shift'
 import { formatCardDate, formatNightShiftDate, calculateNetHours } from '@/lib/kw-utils'
-
-const inputStyle: React.CSSProperties = {
-  width: '100%',
-  border: 'none',
-  borderBottom: '1px solid #e8e8e8',
-  background: 'transparent',
-  fontFamily: "var(--font-ibm-plex-sans), sans-serif",
-  fontSize: '9pt',
-  color: '#222',
-  outline: 'none',
-  padding: '1px 2px',
-}
-
-const labelStyle: React.CSSProperties = {
-  fontSize: '9pt',
-  color: '#999',
-  display: 'block',
-  marginBottom: '1px',
-}
-
-const sectionTitleStyle: React.CSSProperties = {
-  fontSize: '9pt',
-  fontWeight: 700,
-  letterSpacing: '2px',
-  textTransform: 'uppercase',
-  color: '#888',
-  borderBottom: '1px solid #ddd',
-  paddingBottom: '2px',
-  marginBottom: '5px',
-}
-
-const sectionStyle: React.CSSProperties = {
-  marginBottom: '5px',
-  flexShrink: 0,
-}
+import { inputStyle, labelStyle, sectionTitleStyle, sectionStyle } from '@/components/shift-card-styles'
 
 function parseTimeInput(raw: string): string {
   const digits = raw.replace(/\D/g, '')
@@ -207,7 +173,19 @@ function RichTextArea({
         contentEditable
         suppressContentEditableWarning
         data-placeholder={placeholder}
-        onBlur={() => { if (ref.current) onBlur(ref.current.innerHTML) }}
+        onBlur={() => {
+          if (ref.current) {
+            import('dompurify').then(({ default: DOMPurify }) => {
+              if (ref.current) {
+                const sanitized = DOMPurify.sanitize(ref.current.innerHTML, {
+                  ALLOWED_TAGS: ['b', 'u', 'i', 'br', 'span', 'div', 'p'],
+                  ALLOWED_ATTR: [],
+                })
+                onBlur(sanitized)
+              }
+            })
+          }
+        }}
         onKeyUp={checkUnderline}
         onMouseUp={checkUnderline}
         onSelect={checkUnderline}

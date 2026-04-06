@@ -1,43 +1,41 @@
+import Image from 'next/image'
 import Link from 'next/link'
 
 export default function ImpressumPage() {
   return (
-    <div className="min-h-screen text-foreground" style={{ background: 'hsl(222, 25%, 9%)' }}>
+    <div className="relative min-h-screen flex items-start justify-center px-4 py-12">
+      {/* Background image */}
+      <div className="absolute inset-0 -z-20" aria-hidden="true">
+        <Image
+          src="/images/hero-1.jpg"
+          alt=""
+          fill
+          className="object-cover"
+          priority
+          sizes="100vw"
+        />
+      </div>
 
-      {/* Navbar */}
-      <header
-        className="sticky top-0 z-50"
-        style={{
-          backdropFilter: 'blur(16px)',
-          WebkitBackdropFilter: 'blur(16px)',
-          background: 'hsla(222, 25%, 9%, 0.75)',
-          borderBottom: '1px solid hsla(222, 15%, 100%, 0.07)',
-        }}
-      >
-        <div className="mx-auto flex max-w-3xl items-center justify-between px-6 py-4">
-          <Link href="/" className="flex items-baseline gap-0.5" style={{ fontFamily: "var(--font-inter), sans-serif" }}>
-            <span className="text-lg font-extrabold tracking-tight text-foreground">btb</span>
-            <span className="text-lg font-bold text-primary">.online</span>
-          </Link>
-          <Link href="/" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
+      {/* Dark overlay */}
+      <div
+        className="absolute inset-0 -z-10"
+        aria-hidden="true"
+        style={{ background: 'rgba(14, 17, 24, 0.75)' }}
+      />
+
+      {/* Content card */}
+      <div className="w-full max-w-2xl rounded-xl border border-white/10 bg-white/5 p-6 shadow-2xl backdrop-blur-md sm:p-8">
+        <div className="mb-6 flex items-center justify-between">
+          <h1 className="text-xl font-extrabold tracking-tight text-white">Impressum</h1>
+          <Link href="/login" className="text-sm text-white/50 hover:text-white/80 transition-colors">
             ← Zurück
           </Link>
         </div>
-      </header>
 
-      {/* Content */}
-      <main className="mx-auto max-w-3xl px-6 py-16">
-        <h1
-          className="mb-10 font-extrabold tracking-tight text-foreground"
-          style={{ fontFamily: "var(--font-inter), sans-serif", fontSize: 'clamp(1.8rem, 4vw, 2.4rem)' }}
-        >
-          Impressum
-        </h1>
-
-        <div className="space-y-8 text-sm leading-relaxed text-muted-foreground">
+        <div className="space-y-6 text-sm leading-relaxed text-white/60">
 
           <section>
-            <h2 className="mb-2 font-semibold text-foreground">Angaben gemäß § 5 TMG</h2>
+            <h2 className="mb-2 font-semibold text-white/90">Angaben gemäß § 5 TMG</h2>
             <p>
               Jonas Schoenegge<br />
               Markt 3<br />
@@ -46,14 +44,14 @@ export default function ImpressumPage() {
           </section>
 
           <section>
-            <h2 className="mb-2 font-semibold text-foreground">Kontakt</h2>
+            <h2 className="mb-2 font-semibold text-white/90">Kontakt</h2>
             <p>
               E-Mail: jonas.schoenegge@posteo.de
             </p>
           </section>
 
           <section>
-            <h2 className="mb-2 font-semibold text-foreground">Verantwortlich für den Inhalt nach § 55 Abs. 2 RStV</h2>
+            <h2 className="mb-2 font-semibold text-white/90">Verantwortlich für den Inhalt nach § 55 Abs. 2 RStV</h2>
             <p>
               Jonas Schoenegge<br />
               Markt 3<br />
@@ -62,7 +60,7 @@ export default function ImpressumPage() {
           </section>
 
           <section>
-            <h2 className="mb-2 font-semibold text-foreground">Haftungsausschluss</h2>
+            <h2 className="mb-2 font-semibold text-white/90">Haftungsausschluss</h2>
             <p>
               Die Inhalte dieser Website wurden mit größtmöglicher Sorgfalt erstellt. Für die Richtigkeit,
               Vollständigkeit und Aktualität der Inhalte können wir jedoch keine Gewähr übernehmen.
@@ -70,18 +68,12 @@ export default function ImpressumPage() {
           </section>
 
         </div>
-      </main>
 
-      {/* Footer */}
-      <footer style={{ borderTop: '1px solid hsla(222, 15%, 100%, 0.07)' }}>
-        <div className="mx-auto max-w-3xl px-6 py-8">
-          <nav className="flex flex-wrap gap-6 text-xs text-muted-foreground">
-            <Link href="/impressum" className="hover:text-foreground transition-colors">Impressum</Link>
-            <Link href="/datenschutz" className="hover:text-foreground transition-colors">Datenschutz</Link>
-          </nav>
+        <div className="mt-8 flex gap-4 border-t border-white/10 pt-6 text-xs text-white/30">
+          <Link href="/impressum" className="hover:text-white/60 transition-colors">Impressum</Link>
+          <Link href="/datenschutz" className="hover:text-white/60 transition-colors">Datenschutz</Link>
         </div>
-      </footer>
-
+      </div>
     </div>
   )
 }

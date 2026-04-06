@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { useParams, useRouter } from 'next/navigation'
+import { useParams, useRouter, useSearchParams } from 'next/navigation'
 import { ArrowLeft, AlertCircle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
@@ -9,14 +9,40 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { SettingsSection } from '@/components/settings-section'
 import { CategoryManager } from '@/components/category-manager'
 import { BtbPreviewCard } from '@/components/btb-preview-card'
+import { PaperEngine } from '@/components/paper-engine'
+import { WorkNotificationTable } from '@/components/work-notification-table'
 import { createClient } from '@/lib/supabase'
 import type { Project } from '@/lib/validations/project'
 import type { ProjectSettings, ProjectCategory } from '@/lib/validations/project-settings'
 import { DEFAULT_PROJECT_SETTINGS } from '@/lib/validations/project-settings'
+import type { WorkNotificationRow } from '@/lib/validations/work-notification'
+import type { KWInfo } from '@/lib/kw-utils'
 import { toast } from 'sonner'
+import { PERSONAL_PRESETS, EQUIPMENT_PRESETS, WEEKDAY_NAMES } from '@/lib/constants'
 
-const PERSONAL_PRESETS = ['Bauleiter', 'Polier', 'Vorarbeiter', 'Facharbeiter']
-const EQUIPMENT_PRESETS = ['ZWB', 'Wanne + Wagen', 'Kettenbagger', 'Radlader']
+const DEMO_WEEK: KWInfo = {
+  kw: 15,
+  year: 2026,
+  weekStart: new Date(2026, 3, 6),
+  weekEnd: new Date(2026, 3, 12),
+  daysInRange: [],
+  label: 'KW 15',
+  dateRange: '06.–12. Apr',
+}
+
+const DEMO_ROWS: WorkNotificationRow[] = Array.from({ length: 7 }, (_, i) => ({
+  project_id: '',
+  calendar_week: 15,
+  year: 2026,
+  weekday_nr: i + 1,
+  weekday_name: WEEKDAY_NAMES[i],
+  date: `2026-04-${String(6 + i).padStart(2, '0')}`,
+  day_start: null, day_end: null, night_start: null, night_end: null,
+  location: null, bauspitzen: null, workers: null, machines: null,
+  work_description: null, site_manager: null,
+  safety_plan_enabled: false, safety_plan_number: null,
+  track_work_enabled: false, betra_number: null,
+}))
 
 // ZoomSlider-style logo size control
 function LogoSizeControl({
@@ -43,6 +69,19 @@ function LogoSizeControl({
     return newPct
   }, [onChange])
 
+  const listenersRef = useRef<{ onMove: (ev: MouseEvent) => void; onUp: () => void } | null>(null)
+
+  useEffect(() => {
+    // Cleanup on unmount to prevent memory leaks
+    return () => {
+      if (listenersRef.current) {
+        window.removeEventListener('mousemove', listenersRef.current.onMove)
+        window.removeEventListener('mouseup', listenersRef.current.onUp)
+        listenersRef.current = null
+      }
+    }
+  }, [])
+
   const handleMouseDown = (e: React.MouseEvent) => {
     e.preventDefault()
     const newPct = interact(e.clientX)
@@ -50,8 +89,10 @@ function LogoSizeControl({
     const onUp = () => {
       window.removeEventListener('mousemove', onMove)
       window.removeEventListener('mouseup', onUp)
+      listenersRef.current = null
       if (newPct !== undefined) onCommit(newPct / 100)
     }
+    listenersRef.current = { onMove, onUp }
     window.addEventListener('mousemove', onMove)
     window.addEventListener('mouseup', onUp)
   }
@@ -82,7 +123,13 @@ function LogoSizeControl({
 export default function ProjectSettingsPage() {
   const params = useParams()
   const router = useRouter()
+  const searchParams = useSearchParams()
   const projectId = params.id as string
+  const fromAA = searchParams.get('from') === 'arbeitsanmeldung'
+  const kwParam = searchParams.get('kw')
+  const backHref = fromAA
+    ? `/projekte/${projectId}/arbeitsanmeldung${kwParam ? `?kw=${kwParam}` : ''}`
+    : `/projekte/${projectId}`
   const seededRef = useRef(false)
 
   // State
@@ -95,6 +142,7 @@ export default function ProjectSettingsPage() {
   const [companyFallback, setCompanyFallback] = useState<{ firma: string | null; adr: string | null; logoUrl: string | null } | undefined>(undefined)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [previewMode, setPreviewMode] = useState<'btb' | 'aa'>('btb')
 
   // Fetch project + settings + categories
   useEffect(() => {
@@ -164,6 +212,9 @@ export default function ProjectSettingsPage() {
             logo_x: 0.5,
             logo_y: 0.5,
             logo_size: 0.2,
+            aa_logo_x: null,
+            aa_logo_y: null,
+            aa_logo_size: null,
           }
           const { data: created } = await supabase
             .from('project_settings')
@@ -244,17 +295,35 @@ export default function ProjectSettingsPage() {
   }, [])
 
   // Save logo position on mouse up
-  const handleLogoPositionSave = useCallback(async () => {
+  const handleLogoPositionSave = useCallback(async (x: number, y: number) => {
     try {
       const supabase = createClient()
       await supabase
         .from('project_settings')
-        .update({ logo_x: settings.logo_x, logo_y: settings.logo_y })
+        .update({ logo_x: x, logo_y: y })
         .eq('project_id', projectId)
     } catch {
       toast.error('Speichern fehlgeschlagen.')
     }
-  }, [projectId, settings.logo_x, settings.logo_y])
+  }, [projectId])
+
+  // AA logo position change (from drag on AA preview)
+  const handleAaLogoPositionChange = useCallback((x: number, y: number) => {
+    setSettings((prev) => ({ ...prev, aa_logo_x: x, aa_logo_y: y }))
+  }, [])
+
+  // Save AA logo position on mouse up
+  const handleAaLogoPositionSave = useCallback(async (x: number, y: number) => {
+    try {
+      const supabase = createClient()
+      await supabase
+        .from('project_settings')
+        .update({ aa_logo_x: x, aa_logo_y: y })
+        .eq('project_id', projectId)
+    } catch {
+      toast.error('Speichern fehlgeschlagen.')
+    }
+  }, [projectId])
 
   // Category add
   const handleAddCategory = useCallback(async (typ: 'personal' | 'equipment', label: string) => {
@@ -362,7 +431,7 @@ export default function ProjectSettingsPage() {
           <Button
             variant="ghost"
             size="icon"
-            onClick={() => router.push(`/projekte/${projectId}`)}
+            onClick={() => router.push(backHref)}
             aria-label="Zurück zum Projekt"
           >
             <ArrowLeft className="h-4 w-4" />
@@ -423,21 +492,125 @@ export default function ProjectSettingsPage() {
                 />
               </div>
             </SettingsSection>
+
+            {/* Arbeitsanmeldung */}
+            {/* eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions */}
+            <div onClick={() => setPreviewMode('aa')}>
+            <SettingsSection
+              title="Arbeitsanmeldung"
+              description="Logo-Position und -Größe auf der Arbeitsanmeldung (A4 Querformat). Wenn nicht gesetzt, werden die BTB-Einstellungen übernommen."
+            >
+              {hasLogo ? (
+                <div className="space-y-3">
+                  <LogoSizeControl
+                    value={settings.aa_logo_size ?? settings.logo_size}
+                    onChange={(v) => setSettings((prev) => ({ ...prev, aa_logo_size: v }))}
+                    onCommit={(v) => saveField('aa_logo_size', v)}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Logo auf der Vorschau ziehen, um die Position zu ändern.{' '}
+                    {settings.aa_logo_x === null && (
+                      <span className="text-muted-foreground/60">
+                        Aktuell wird die BTB-Position übernommen.
+                      </span>
+                    )}
+                  </p>
+                  {settings.aa_logo_x !== null && (
+                    <button
+                      onClick={() => {
+                        setSettings((prev) => ({ ...prev, aa_logo_x: null, aa_logo_y: null, aa_logo_size: null }))
+                        const supabase = createClient()
+                        supabase.from('project_settings').update({ aa_logo_x: null, aa_logo_y: null, aa_logo_size: null }).eq('project_id', projectId)
+                      }}
+                      className="text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground"
+                    >
+                      Zurücksetzen (BTB-Einstellungen übernehmen)
+                    </button>
+                  )}
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground">
+                  Kein Logo vorhanden. Logo in den{' '}
+                  <a href="/einstellungen" className="underline underline-offset-2 hover:text-foreground">
+                    Account-Einstellungen
+                  </a>{' '}
+                  hochladen.
+                </p>
+              )}
+            </SettingsSection>
+            </div>
           </div>
 
           {/* Right column: Live preview (sticky) */}
-          <div className="lg:col-span-2 lg:sticky lg:top-6">
-            <BtbPreviewCard
-              settings={settings}
-              projectName={project.name}
-              projectNr={project.nr}
-              projectAg={project.ag}
-              onLogoPositionChange={handleLogoPositionChange}
-              onLogoPositionSave={handleLogoPositionSave}
-              companyFallback={companyFallback}
-              workerCategories={workerCategories}
-              equipmentCategories={equipmentCategories}
-            />
+          <div className="lg:col-span-2 lg:sticky lg:top-6 space-y-3">
+            {/* Preview toggle */}
+            <div
+              className="relative flex w-fit rounded-md border border-[#e8c547]/50 bg-card cursor-pointer select-none overflow-hidden"
+            >
+              {(['btb', 'aa'] as const).map((mode) => (
+                <button
+                  key={mode}
+                  onClick={() => setPreviewMode(mode)}
+                  className="relative z-10 px-3 py-1.5 text-[10px] font-semibold transition-colors"
+                  style={{
+                    color: previewMode === mode ? '#0e1118' : '#e8c547',
+                    background: previewMode === mode ? '#e8c547' : 'transparent',
+                  }}
+                >
+                  {mode === 'btb' ? 'BTB' : 'Arbeitsanmeldung'}
+                </button>
+              ))}
+            </div>
+
+            {previewMode === 'btb' ? (
+              <BtbPreviewCard
+                settings={settings}
+                projectName={project.name}
+                projectNr={project.nr}
+                projectAg={project.ag}
+                onLogoPositionChange={handleLogoPositionChange}
+                onLogoPositionSave={handleLogoPositionSave}
+                companyFallback={companyFallback}
+                workerCategories={workerCategories}
+                equipmentCategories={equipmentCategories}
+              />
+            ) : (
+              <div style={{ width: '100%', overflow: 'hidden', borderRadius: '4px' }}>
+                <PaperEngine orientation="landscape" zoom={38} onPrint={() => {}}>
+                  <WorkNotificationTable
+                    rows={DEMO_ROWS}
+                    week={DEMO_WEEK}
+                    project={project}
+                    logo={
+                      (settings.logo_url || companyFallback?.logoUrl)
+                        ? {
+                            url: (settings.logo_url || companyFallback?.logoUrl)!,
+                            x: settings.aa_logo_x ?? settings.logo_x,
+                            y: settings.aa_logo_y ?? settings.logo_y,
+                            size: settings.aa_logo_size ?? settings.logo_size,
+                          }
+                        : null
+                    }
+                    companyInfo={{
+                      name: settings.firma || companyFallback?.firma || null,
+                      adr: settings.adr || companyFallback?.adr || null,
+                    }}
+                    disabledDays={new Set()}
+                    activeDays={new Set()}
+                    equipmentCategories={equipmentCategories}
+                    onLogoPositionChange={handleAaLogoPositionChange}
+                    onLogoPositionSave={handleAaLogoPositionSave}
+                    onUpdateRow={() => {}}
+                    onBlurSave={() => {}}
+                    onFieldBlur={() => {}}
+                    onClearShift={() => {}}
+                    onCheckboxChange={() => {}}
+                    onAddDay={() => {}}
+                    onRemoveDay={() => {}}
+                  />
+                </PaperEngine>
+              </div>
+            )}
           </div>
         </div>
       </main>

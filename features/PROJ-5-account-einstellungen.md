@@ -25,6 +25,7 @@ Ohne Firma ist die App vollständig nutzbar — Daten werden aber keiner Firma z
 - Als Nutzer möchte ich Firmenname, Adresse und Logo hinterlegen, die auf allen BTBs meiner Firma erscheinen.
 - Als Nutzer möchte ich mein Passwort ändern können.
 - Als Nutzer möchte ich meine Firma verlassen können.
+- Als Nutzer möchte ich meinen Account dauerhaft löschen können, damit meine Daten vollständig entfernt werden.
 
 ---
 
@@ -62,6 +63,14 @@ Ohne Firma ist die App vollständig nutzbar — Daten werden aber keiner Firma z
 ### Passwort ändern
 - [ ] Felder: aktuelles Passwort + neues Passwort (min. 8 Zeichen) + Bestätigung
 - [ ] Änderung via Supabase Auth API
+
+### Account löschen
+- [ ] Button "Account löschen" in den Einstellungen (Gefahrenzone, visuell abgesetzt)
+- [ ] Bestätigungs-Dialog mit Pflicht-Eingabe der eigenen E-Mail-Adresse (kein versehentliches Löschen)
+- [ ] Löscht: `auth.users` Eintrag (via Supabase Admin API, serverseitig), `profiles` Zeile
+- [ ] Falls Nutzer letzter Verknüpfter einer Firma: Firma bleibt erhalten (Daten gehören der Firma)
+- [ ] Falls Nutzer in keiner Firma: eigene Projekte und BTBs werden ebenfalls gelöscht (Cascade)
+- [ ] Nach Löschen: Session beendet, Weiterleitung zu `/login` mit Hinweis "Dein Account wurde gelöscht"
 
 ### projects Migration
 - [ ] `projects.user_id` → `projects.company_id` (Projekte gehören der Firma)
@@ -269,8 +278,41 @@ SettingsSection.tsx — Wrapper: Sektions-Titel + optionale Beschreibung + Slot 
 | profiles Auto-Create | Supabase DB Trigger bei auth.users INSERT | Kein manueller Schritt nach Registrierung nötig |
 | companies.is_active | In RLS-Policy geprüft | Deaktivierte Firma = Schreibsperre ohne Code-Änderung |
 | Reihenfolge: Backend zuerst | DB-Migration vor Frontend | projects.company_id muss existieren bevor UI darauf aufbaut |
+| E-Mail als Bestätigung | Input-Vergleich im Dialog | Verhindert versehentliches Löschen (bewährtes Muster: GitHub, Vercel) |
+| Löschung via Admin API | `auth.admin.deleteUser()` server-side | Nur service_role kann auth.users löschen — nie vom Client |
+| Cascade via DB | FK-Constraint auf `profiles.user_id` | Profile-Zeile wird automatisch gelöscht wenn auth.users entfernt wird |
+| Manuelle Cascade | Projekte/Shifts explizit in API Route löschen | RLS verhindert automatische Cascades über Tabellengrenzen hinweg |
+
+### Account löschen — Komponentenstruktur (Ergänzung)
+
+```
+/einstellungen (bestehende Seite)
++-- [bestehend] SettingsSection "Account" (Passwort)
++-- [bestehend] SettingsSection "Firma"
++-- [NEU] SettingsSection "Gefahrenzone"
+    +-- Beschreibung: "Diese Aktion kann nicht rückgängig gemacht werden"
+    +-- Button "Account löschen" (destructive/rot)
+        +-- DeleteAccountDialog (NEU)
+            +-- Warnung: was gelöscht wird (abhängig von Firmenstatus)
+            +-- E-Mail-Eingabefeld (muss eigene E-Mail sein)
+            +-- Button "Dauerhaft löschen" (nur aktiv wenn E-Mail korrekt)
+```
+
+### Account löschen — API Route (Ergänzung)
+
+| Route | Methode | Was sie tut |
+|-------|---------|-------------|
+| `/api/account/delete` | POST | Session prüfen → company_id ermitteln → ggf. Projekte+Shifts löschen → `auth.admin.deleteUser()` → 200 |
+
+**Cascade-Logik (serverseitig):**
+- Nutzer **hat Firma** → nur `auth.users` löschen; Projekte gehören der Firma und bleiben erhalten
+- Nutzer **hat keine Firma** → erst alle eigenen Projekte, Shifts, shift_workers, shift_equipment löschen; dann `auth.users`
 
 ## Backend Implementation Notes
+
+**Account löschen — Completed 2026-03-29:**
+- `POST /api/account/delete` — Prüft Session, ermittelt company_id, löscht ggf. eigene Projekte (Cascade via FK), löscht `auth.users` via `auth.admin.deleteUser()` (Cascade auf `profiles`)
+- Keine neuen DB-Migrations nötig — bestehende FK-Constraints reichen aus
 
 **Completed 2026-03-20:**
 - `src/lib/supabase.ts` — Added `createServiceClient()` using `SUPABASE_SERVICE_ROLE_KEY` (server-only)
@@ -290,6 +332,11 @@ SettingsSection.tsx — Wrapper: Sektions-Titel + optionale Beschreibung + Slot 
 - No frontend query changes needed (all use `select('*')`, type change is sufficient)
 
 ## Frontend Implementation Notes
+
+**Account löschen — Completed 2026-03-29:**
+- `src/components/delete-account-dialog.tsx` — Dialog mit E-Mail-Bestätigung; lädt User-Email via `supabase.auth.getUser()`, Button nur aktiv wenn E-Mail übereinstimmt, ruft `POST /api/account/delete` auf, dann `signOut()` + Redirect zu `/login?deleted=true`
+- `src/app/einstellungen/page.tsx` — "Gefahrenzone"-Sektion mit rotem Border am Ende der Seite; öffnet `DeleteAccountDialog`
+- `src/app/login/page.tsx` — Zeigt grünen Hinweis "Dein Account wurde gelöscht." bei `?deleted=true`
 
 **Completed 2026-03-20:**
 - `src/app/einstellungen/page.tsx` — Settings page with Account and Firma sections

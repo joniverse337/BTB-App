@@ -1,65 +1,28 @@
 import { NextResponse } from 'next/server'
-import { createServerClient } from '@supabase/ssr'
-import { cookies } from 'next/headers'
-import { createServiceClient } from '@/lib/supabase'
+import { createAuthenticatedRoute, parseJsonBody } from '@/lib/api-utils'
 import { z } from 'zod'
+
+const SUPABASE_STORAGE_PATTERN = /^https:\/\/[a-z0-9-]+\.supabase\.co\/storage\//
 
 const updateCompanySchema = z.object({
   name: z.string().min(1, 'Firmenname darf nicht leer sein.').max(200).optional(),
   adr: z.string().max(500).nullable().optional(),
-  logo_url: z.string().url().nullable().optional(),
+  logo_url: z.string().url().refine(
+    (url) => SUPABASE_STORAGE_PATTERN.test(url),
+    { message: 'Logo-URL muss eine Supabase-Storage-URL sein.' }
+  ).nullable().optional(),
   logo_x: z.number().min(0).max(1).optional(),
   logo_y: z.number().min(0).max(1).optional(),
 })
 
-export async function POST(request: Request) {
-  // 1. Check authentication
-  const cookieStore = await cookies()
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        getAll() {
-          return cookieStore.getAll()
-        },
-        setAll() {
-          // Read-only in API routes
-        },
-      },
-    }
-  )
+type UpdateCompanyData = z.infer<typeof updateCompanySchema>
 
-  const { data: { user }, error: authError } = await supabase.auth.getUser()
-  if (authError || !user) {
-    return NextResponse.json(
-      { error: 'Nicht authentifiziert.' },
-      { status: 401 }
-    )
-  }
+export const POST = createAuthenticatedRoute(async (request, { user, serviceClient }) => {
+  // 1. Parse and validate request body
+  const parsed = await parseJsonBody<UpdateCompanyData>(request, updateCompanySchema)
+  if (parsed instanceof NextResponse) return parsed
 
-  // 2. Parse and validate request body
-  let body: unknown
-  try {
-    body = await request.json()
-  } catch {
-    return NextResponse.json(
-      { error: 'Ungültige Anfrage.' },
-      { status: 400 }
-    )
-  }
-
-  const parsed = updateCompanySchema.safeParse(body)
-  if (!parsed.success) {
-    return NextResponse.json(
-      { error: parsed.error.issues[0]?.message ?? 'Ungültige Eingabe.' },
-      { status: 400 }
-    )
-  }
-
-  // 3. Get user's company_id
-  const serviceClient = createServiceClient()
-
+  // 2. Get user's company_id
   const { data: profile, error: profileError } = await serviceClient
     .from('profiles')
     .select('company_id')
@@ -73,10 +36,10 @@ export async function POST(request: Request) {
     )
   }
 
-  // 4. Update company
+  // 3. Update company
   const { error: updateError } = await serviceClient
     .from('companies')
-    .update(parsed.data)
+    .update(parsed)
     .eq('id', profile.company_id)
 
   if (updateError) {
@@ -87,4 +50,4 @@ export async function POST(request: Request) {
   }
 
   return NextResponse.json({ success: true })
-}
+})

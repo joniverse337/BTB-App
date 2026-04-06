@@ -1,8 +1,6 @@
 import { NextResponse } from 'next/server'
-import { createServerClient } from '@supabase/ssr'
-import { cookies } from 'next/headers'
-import { createServiceClient } from '@/lib/supabase'
-import { createCompanySchema } from '@/lib/validations/company'
+import { createAuthenticatedRoute, parseJsonBody } from '@/lib/api-utils'
+import { createCompanySchema, type CreateCompanyData } from '@/lib/validations/company'
 
 function generateCompanyCode(): string {
   const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'
@@ -14,56 +12,14 @@ function generateCompanyCode(): string {
   return code
 }
 
-export async function POST(request: Request) {
-  // 1. Check authentication
-  const cookieStore = await cookies()
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        getAll() {
-          return cookieStore.getAll()
-        },
-        setAll() {
-          // Read-only in API routes
-        },
-      },
-    }
-  )
+export const POST = createAuthenticatedRoute(async (request, { user, serviceClient }) => {
+  // 1. Parse and validate request body
+  const parsed = await parseJsonBody<CreateCompanyData>(request, createCompanySchema)
+  if (parsed instanceof NextResponse) return parsed
 
-  const { data: { user }, error: authError } = await supabase.auth.getUser()
-  if (authError || !user) {
-    return NextResponse.json(
-      { error: 'Nicht authentifiziert.' },
-      { status: 401 }
-    )
-  }
+  const { name, adr } = parsed
 
-  // 2. Parse and validate request body
-  let body: unknown
-  try {
-    body = await request.json()
-  } catch {
-    return NextResponse.json(
-      { error: 'Ungültige Anfrage.' },
-      { status: 400 }
-    )
-  }
-
-  const parsed = createCompanySchema.safeParse(body)
-  if (!parsed.success) {
-    return NextResponse.json(
-      { error: parsed.error.issues[0]?.message ?? 'Ungültige Eingabe.' },
-      { status: 400 }
-    )
-  }
-
-  const { name, adr } = parsed.data
-
-  // 3. Check if user already has a company
-  const serviceClient = createServiceClient()
-
+  // 2. Check if user already has a company
   const { data: profile, error: profileError } = await serviceClient
     .from('profiles')
     .select('company_id')
@@ -84,7 +40,7 @@ export async function POST(request: Request) {
     )
   }
 
-  // 4. Generate code and insert company (retry once on collision)
+  // 3. Generate code and insert company (retry once on collision)
   let company = null
   let attempts = 0
   const maxAttempts = 2
@@ -100,7 +56,6 @@ export async function POST(request: Request) {
       .single()
 
     if (insertError) {
-      console.error('[companies/create] Insert error:', insertError)
       // Check for unique constraint violation on code
       if (insertError.code === '23505' && attempts < maxAttempts) {
         continue // Retry with new code
@@ -121,14 +76,13 @@ export async function POST(request: Request) {
     )
   }
 
-  // 5. Link user to company
+  // 4. Link user to company
   const { error: updateError } = await serviceClient
     .from('profiles')
     .update({ company_id: company.id })
     .eq('user_id', user.id)
 
   if (updateError) {
-    console.error('[companies/create] Profile update error:', updateError)
     // Attempt to clean up the created company
     await serviceClient.from('companies').delete().eq('id', company.id)
     return NextResponse.json(
@@ -137,7 +91,7 @@ export async function POST(request: Request) {
     )
   }
 
-  // 6. Return success
+  // 5. Return success
   return NextResponse.json({
     company: {
       id: company.id,
@@ -145,4 +99,4 @@ export async function POST(request: Request) {
       code: company.code,
     },
   })
-}
+})

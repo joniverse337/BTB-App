@@ -8,7 +8,7 @@ import { z } from 'zod'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
+import { AuthLayout } from '@/components/auth-layout'
 import { createClient } from '@/lib/supabase'
 
 const newPasswordSchema = z.object({
@@ -34,80 +34,85 @@ export default function NewPasswordPage() {
     setIsLoading(true)
     setServerError(null)
 
-    const supabase = createClient()
-    const { error } = await supabase.auth.updateUser({
-      password: data.password,
-    })
+    try {
+      const supabase = createClient()
+      const { error } = await supabase.auth.updateUser({
+        password: data.password,
+      })
 
-    if (error) {
-      if (error.message.includes('same password')) {
-        setServerError('Das neue Passwort darf nicht mit dem alten übereinstimmen.')
-      } else if (error.message.includes('expired') || error.message.includes('invalid')) {
-        setServerError('Der Reset-Link ist abgelaufen. Bitte fordere einen neuen an.')
-      } else {
-        setServerError('Fehler beim Setzen des Passworts. Bitte versuche es erneut.')
+      if (error) {
+        if (error.message.includes('same password')) {
+          setServerError('Das neue Passwort darf nicht mit dem alten übereinstimmen.')
+        } else if (error.message.includes('expired') || error.message.includes('invalid')) {
+          setServerError('Der Reset-Link ist abgelaufen. Bitte fordere einen neuen an.')
+        } else {
+          setServerError('Fehler beim Setzen des Passworts. Bitte versuche es erneut.')
+        }
+        return
       }
-      setIsLoading(false)
-      return
-    }
 
-    router.push('/projekte')
-    router.refresh()
+      router.push('/projekte')
+      router.refresh()
+    } catch {
+      setServerError('Fehler beim Setzen des Passworts. Bitte versuche es erneut.')
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center px-4">
-      <Card className="w-full max-w-sm">
-        <CardHeader className="space-y-1">
-          <CardTitle className="text-2xl font-bold">Neues Passwort</CardTitle>
-          <CardDescription>
-            Gib dein neues Passwort ein
-          </CardDescription>
-        </CardHeader>
+    <AuthLayout>
+      {/* Logo */}
+      <div className="mb-6 flex items-baseline justify-center gap-0.5" style={{ fontFamily: 'var(--font-inter), sans-serif' }}>
+        <span className="text-2xl font-extrabold text-white">btb</span>
+        <span className="text-2xl font-bold text-primary">.online</span>
+      </div>
 
-        <form onSubmit={handleSubmit(onSubmit)}>
-          <CardContent className="space-y-4">
-            {serverError && (
-              <div className="text-sm text-destructive bg-destructive/10 px-3 py-2 rounded-md">
-                {serverError}
-              </div>
-            )}
+      <div className="space-y-1 text-center mb-6">
+        <h1 className="text-xl font-bold text-white">Neues Passwort</h1>
+        <p className="text-sm text-white/60">
+          Gib dein neues Passwort ein
+        </p>
+      </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="password">Neues Passwort</Label>
-              <Input
-                id="password"
-                type="password"
-                placeholder="Mindestens 8 Zeichen"
-                autoComplete="new-password"
-                {...register('password')}
-              />
-              {errors.password && (
-                <p className="text-xs text-destructive">{errors.password.message}</p>
-              )}
-            </div>
+      <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+        {serverError && (
+          <div className="text-sm text-destructive bg-destructive/10 px-3 py-2 rounded-md">
+            {serverError}
+          </div>
+        )}
 
-            <div className="space-y-2">
-              <Label htmlFor="confirmPassword">Passwort bestätigen</Label>
-              <Input
-                id="confirmPassword"
-                type="password"
-                autoComplete="new-password"
-                {...register('confirmPassword')}
-              />
-              {errors.confirmPassword && (
-                <p className="text-xs text-destructive">{errors.confirmPassword.message}</p>
-              )}
-            </div>
-          </CardContent>
+        <div className="space-y-2">
+          <Label htmlFor="password" className="text-white/80">Neues Passwort</Label>
+          <Input
+            id="password"
+            type="password"
+            placeholder="Mindestens 8 Zeichen"
+            autoComplete="new-password"
+            {...register('password')}
+          />
+          {errors.password && (
+            <p className="text-xs text-destructive">{errors.password.message}</p>
+          )}
+        </div>
 
-          <CardFooter>
-            <Button type="submit" className="w-full font-semibold" disabled={isLoading}>
-              {isLoading ? 'Wird gespeichert…' : 'Passwort speichern'}
-            </Button>
-          </CardFooter>
-        </form>
-      </Card>
-    </div>
+        <div className="space-y-2">
+          <Label htmlFor="confirmPassword" className="text-white/80">Passwort bestätigen</Label>
+          <Input
+            id="confirmPassword"
+            type="password"
+            autoComplete="new-password"
+            {...register('confirmPassword')}
+          />
+          {errors.confirmPassword && (
+            <p className="text-xs text-destructive">{errors.confirmPassword.message}</p>
+          )}
+        </div>
+
+        <Button type="submit" className="w-full font-semibold" disabled={isLoading}>
+          {isLoading ? 'Wird gespeichert…' : 'Passwort speichern'}
+        </Button>
+      </form>
+    </AuthLayout>
   )
 }

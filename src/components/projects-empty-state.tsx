@@ -10,11 +10,11 @@ interface ProjectsEmptyStateProps {
 export function ProjectsEmptyState({ onCreateClick }: ProjectsEmptyStateProps) {
   return (
     <div className="flex flex-col items-center justify-center py-24 px-4 text-center">
-      <div className="rounded-full bg-muted p-6 mb-6">
-        <FolderPlus className="h-12 w-12 text-muted-foreground" />
+      <div className="rounded-full bg-white/10 p-6 mb-6">
+        <FolderPlus className="h-12 w-12 text-white/50" />
       </div>
-      <h2 className="text-xl font-semibold mb-2">Noch keine Projekte</h2>
-      <p className="text-muted-foreground mb-6 max-w-md">
+      <h2 className="text-xl font-semibold mb-2 text-white">Noch keine Projekte</h2>
+      <p className="text-white/50 mb-6 max-w-md">
         Erstelle dein erstes Bauprojekt, um mit der Erfassung von Bautagesberichten zu beginnen.
       </p>
       <Button onClick={onCreateClick} className="font-semibold">

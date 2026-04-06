@@ -19,6 +19,7 @@ BTB (Bautagesbericht) ist eine Web-App für Bauunternehmen, mit der Bauleiter un
 | P0 (MVP) | PROJ-3: Schichtverwaltung | Planned |
 | P0 (MVP) | PROJ-4: KW-Grid & Kartenansicht | Planned |
 | P0 (MVP) | PROJ-5: Drucken | Planned |
+| P1 | PROJ-7: Arbeitsanmeldung (KW-basiert) | Planned |
 
 ## Success Metrics
 - Nutzer können sich registrieren und innerhalb von 2 Minuten ihren ersten BTB anlegen

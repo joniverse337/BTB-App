@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import Image from 'next/image'
 import { Plus, LogOut, Settings, AlertCircle, RefreshCw } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
@@ -101,7 +102,7 @@ export default function ProjektePage() {
       setProjects((prev) => prev.filter((p) => p.id !== project.id))
       setSaveError(null)
     } catch (err) {
-      console.error('Error deleting project:', err)
+      void err
       setSaveError('Projekt konnte nicht gelöscht werden. Bitte versuche es erneut.')
     }
   }
@@ -167,7 +168,7 @@ export default function ProjektePage() {
       setEditingProject(null)
       await fetchProjects()
     } catch (err) {
-      console.error('Error saving project:', err)
+      void err
       setSaveError('Projekt konnte nicht gespeichert werden. Bitte versuche es erneut.')
     } finally {
       setIsSubmitting(false)
@@ -192,7 +193,7 @@ export default function ProjektePage() {
       await fetchProjects()
       toast.info('Projekt gespeichert. Schichten außerhalb des Zeitraums sind ausgeblendet.')
     } catch (err) {
-      console.error('Error saving project:', err)
+      void err
       setSaveError('Projekt konnte nicht gespeichert werden. Bitte versuche es erneut.')
     } finally {
       setIsSubmitting(false)
@@ -232,7 +233,7 @@ export default function ProjektePage() {
       await fetchProjects()
       toast.success('Projekt gespeichert. Schichten außerhalb des Zeitraums wurden gelöscht.')
     } catch (err) {
-      console.error('Error saving project:', err)
+      void err
       setSaveError('Projekt konnte nicht gespeichert werden. Bitte versuche es erneut.')
     } finally {
       setIsSubmitting(false)
@@ -247,12 +248,32 @@ export default function ProjektePage() {
   }
 
   return (
-    <div className="min-h-screen">
+    <div className="relative min-h-screen">
+      {/* Background image */}
+      <div className="fixed inset-0 -z-20" aria-hidden="true">
+        <Image
+          src="/images/hero-1.jpg"
+          alt=""
+          fill
+          className="object-cover"
+          priority
+          sizes="100vw"
+        />
+      </div>
+
+      {/* Dark overlay */}
+      <div
+        className="fixed inset-0 -z-10"
+        aria-hidden="true"
+        style={{ background: 'rgba(14, 17, 24, 0.65)' }}
+      />
+
       {/* Header */}
-      <header className="border-b">
+      <header className="border-b border-white/10 bg-white/5 backdrop-blur-md">
         <div className="container mx-auto flex items-center justify-between px-4 py-4 md:px-6">
           <h1 className="text-xl font-bold">
-            <span className="text-primary">BTB</span> Projekte
+            <span className="text-primary">BTB</span>{' '}
+            <span className="text-white">Projekte</span>
           </h1>
           <div className="flex items-center gap-2">
             <Button onClick={handleCreateClick} className="font-semibold">
@@ -265,10 +286,17 @@ export default function ProjektePage() {
               size="icon"
               onClick={() => router.push('/einstellungen')}
               aria-label="Einstellungen"
+              className="text-white/70 hover:text-white hover:bg-white/10"
             >
               <Settings className="h-4 w-4" />
             </Button>
-            <Button variant="ghost" size="icon" onClick={handleLogout} aria-label="Ausloggen">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={handleLogout}
+              aria-label="Ausloggen"
+              className="text-white/70 hover:text-white hover:bg-white/10"
+            >
               <LogOut className="h-4 w-4" />
             </Button>
           </div>
@@ -279,14 +307,14 @@ export default function ProjektePage() {
       <main className="container mx-auto px-4 py-6 md:px-6 md:py-8">
         {/* Save error */}
         {saveError && (
-          <div className="mb-6 flex items-center gap-3 rounded-md border border-destructive/50 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+          <div className="mb-6 flex items-center gap-3 rounded-md border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-300">
             <AlertCircle className="h-4 w-4 shrink-0" />
             <span className="flex-1">{saveError}</span>
             <Button
               variant="ghost"
               size="sm"
               onClick={() => setSaveError(null)}
-              className="shrink-0 text-destructive hover:text-destructive"
+              className="shrink-0 text-red-300 hover:text-red-200 hover:bg-white/10"
             >
               <RefreshCw className="mr-1 h-3 w-3" />
               Schließen
@@ -298,11 +326,11 @@ export default function ProjektePage() {
         {isLoading && (
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {Array.from({ length: 6 }).map((_, i) => (
-              <div key={i} className="rounded-lg border bg-card p-6 space-y-3">
-                <Skeleton className="h-6 w-3/4" />
-                <Skeleton className="h-4 w-1/2" />
-                <Skeleton className="h-4 w-2/3" />
-                <Skeleton className="h-4 w-1/3" />
+              <div key={i} className="rounded-xl border border-white/10 bg-white/5 p-6 space-y-3 backdrop-blur-md">
+                <Skeleton className="h-6 w-3/4 bg-white/10" />
+                <Skeleton className="h-4 w-1/2 bg-white/10" />
+                <Skeleton className="h-4 w-2/3 bg-white/10" />
+                <Skeleton className="h-4 w-1/3 bg-white/10" />
               </div>
             ))}
           </div>
@@ -343,10 +371,10 @@ export default function ProjektePage() {
 
       {/* Leistungszeitraum shift warning */}
       <AlertDialog open={!!shiftWarning} onOpenChange={(open) => { if (!open) setShiftWarning(null) }}>
-        <AlertDialogContent>
+        <AlertDialogContent className="text-white">
           <AlertDialogHeader>
-            <AlertDialogTitle>Leistungszeitraum kürzen</AlertDialogTitle>
-            <AlertDialogDescription>
+            <AlertDialogTitle className="text-white">Leistungszeitraum kürzen</AlertDialogTitle>
+            <AlertDialogDescription className="text-white/60">
               {shiftWarning?.count === 1
                 ? '1 BTB liegt'
                 : `${shiftWarning?.count} BTBs liegen`}{' '}
@@ -355,7 +383,7 @@ export default function ProjektePage() {
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter className="flex-col gap-2 sm:flex-row">
-            <AlertDialogCancel disabled={isSubmitting}>Abbrechen</AlertDialogCancel>
+            <AlertDialogCancel disabled={isSubmitting} className="border-white/20 bg-white/10 text-white hover:bg-white/20 hover:text-white">Abbrechen</AlertDialogCancel>
             <Button variant="destructive" onClick={handleWarningSaveDelete} disabled={isSubmitting}>
               Kürzen & löschen
             </Button>

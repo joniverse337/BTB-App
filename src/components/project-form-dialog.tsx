@@ -79,7 +79,7 @@ export function ProjectFormDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-md text-white">
         <DialogHeader>
           <DialogTitle>
             {isEditing ? 'Projekt bearbeiten' : 'Neues Projekt anlegen'}
@@ -93,41 +93,44 @@ export function ProjectFormDialog({
 
         <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="project-name">
-              Projektname <span className="text-destructive">*</span>
+            <Label htmlFor="project-name" className="text-white/80">
+              Projektname <span className="text-red-400">*</span>
             </Label>
             <Input
               id="project-name"
               placeholder="z.B. Gleisumbau Hauptbahnhof"
               autoFocus
+              className="border-white/20 bg-white/10 text-white placeholder:text-white/30 focus-visible:border-primary"
               {...register('name')}
             />
             {errors.name && (
-              <p className="text-xs text-destructive">{errors.name.message}</p>
+              <p className="text-xs text-red-400">{errors.name.message}</p>
             )}
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="project-nr">Kostenstelle / Projektnummer</Label>
+            <Label htmlFor="project-nr" className="text-white/80">Kostenstelle / Projektnummer</Label>
             <Input
               id="project-nr"
               placeholder="z.B. KST-2024-001"
+              className="border-white/20 bg-white/10 text-white placeholder:text-white/30 focus-visible:border-primary"
               {...register('nr')}
             />
             {errors.nr && (
-              <p className="text-xs text-destructive">{errors.nr.message}</p>
+              <p className="text-xs text-red-400">{errors.nr.message}</p>
             )}
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="project-ag">Auftraggeber</Label>
+            <Label htmlFor="project-ag" className="text-white/80">Auftraggeber</Label>
             <Input
               id="project-ag"
               placeholder="z.B. Deutsche Bahn AG"
+              className="border-white/20 bg-white/10 text-white placeholder:text-white/30 focus-visible:border-primary"
               {...register('ag')}
             />
             {errors.ag && (
-              <p className="text-xs text-destructive">{errors.ag.message}</p>
+              <p className="text-xs text-red-400">{errors.ag.message}</p>
             )}
           </div>
 
@@ -177,6 +180,7 @@ export function ProjectFormDialog({
               variant="outline"
               onClick={() => onOpenChange(false)}
               disabled={isSubmitting}
+              className="border-white/20 bg-white/10 text-white hover:bg-white/20 hover:text-white"
             >
               Abbrechen
             </Button>

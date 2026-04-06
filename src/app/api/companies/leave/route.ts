@@ -1,37 +1,8 @@
 import { NextResponse } from 'next/server'
-import { createServerClient } from '@supabase/ssr'
-import { cookies } from 'next/headers'
-import { createServiceClient } from '@/lib/supabase'
+import { createAuthenticatedRoute } from '@/lib/api-utils'
 
-export async function POST() {
-  // 1. Check authentication
-  const cookieStore = await cookies()
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        getAll() {
-          return cookieStore.getAll()
-        },
-        setAll() {
-          // Read-only in API routes
-        },
-      },
-    }
-  )
-
-  const { data: { user }, error: authError } = await supabase.auth.getUser()
-  if (authError || !user) {
-    return NextResponse.json(
-      { error: 'Nicht authentifiziert.' },
-      { status: 401 }
-    )
-  }
-
-  // 2. Check if user has a company
-  const serviceClient = createServiceClient()
-
+export const POST = createAuthenticatedRoute(async (_request, { user, serviceClient }) => {
+  // 1. Check if user has a company
   const { data: profile, error: profileError } = await serviceClient
     .from('profiles')
     .select('company_id')
@@ -52,7 +23,7 @@ export async function POST() {
     )
   }
 
-  // 3. Set company_id to NULL
+  // 2. Set company_id to NULL
   const { error: updateError } = await serviceClient
     .from('profiles')
     .update({ company_id: null })
@@ -65,6 +36,6 @@ export async function POST() {
     )
   }
 
-  // 4. Return success
+  // 3. Return success
   return NextResponse.json({ success: true })
-}
+})

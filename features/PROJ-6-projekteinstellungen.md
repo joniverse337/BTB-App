@@ -42,6 +42,15 @@ und gelten für alle Projekte der Firma gleich. In PROJ-6 wird nur noch die Posi
 - [x] Logo-Größe per ZoomSlider-Style-Control anpassen (Gold-Fill Pill, analog Zoom in KW-Navigation)
 - [x] Firmen-Logo (aus PROJ-5) wird als Fallback genutzt wenn kein Projekt-Logo hochgeladen
 
+### Logo-Position & -Größe für Arbeitsanmeldung
+- [x] Eigene Sektion „Arbeitsanmeldung" auf der Einstellungsseite
+- [x] Eigene x/y-Position + Größe für AA-Logo (kann von BTB-Logo-Position abweichen)
+- [x] Live-Vorschau zeigt AA-Vorlage (A4 Querformat, read-only) via `AaPreviewCard`
+- [x] Felder: `aa_logo_x`, `aa_logo_y`, `aa_logo_size` in `project_settings`
+- [x] Fallback: wenn `aa_logo_x` null → BTB-Logo-Einstellungen werden übernommen (visuell angezeigt)
+- [x] Zurücksetzen-Button: setzt AA-Einstellungen auf null zurück (BTB-Fallback)
+- [x] Preview-Toggle (BTB / Arbeitsanmeldung) in der rechten Spalte
+
 ### Quick-Buttons
 - [x] Tab "Personal": Kategorien anlegen (Label-Eingabe + Hinzufügen), alle löschbar
 - [x] Tab "Geräte": Kategorien anlegen, alle löschbar

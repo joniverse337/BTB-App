@@ -207,7 +207,7 @@ export function ArbeitsZeitCell({
       <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
         <button style={{ ...chipStyle(showDay), width: '100%' }} onClick={toggleDay}>Tagschicht</button>
         {showDay && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: '3px', paddingLeft: '2px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '3px' }}>
             <AATimeInput value={dayStart ?? ''} onBlur={v => onFieldBlur(weekdayNr, 'day_start', v || null)} />
             <span style={{ color: '#bbb', fontSize: '7pt', flexShrink: 0 }}>–</span>
             <AATimeInput value={dayEnd ?? ''} onBlur={v => onFieldBlur(weekdayNr, 'day_end', v || null)} />
@@ -219,7 +219,7 @@ export function ArbeitsZeitCell({
       <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
         <button style={{ ...chipStyle(showNight), width: '100%' }} onClick={toggleNight}>Nachtschicht</button>
         {showNight && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: '3px', paddingLeft: '2px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '3px' }}>
             <AATimeInput value={nightStart ?? ''} onBlur={v => onFieldBlur(weekdayNr, 'night_start', v || null)} />
             <span style={{ color: '#bbb', fontSize: '7pt', flexShrink: 0 }}>–</span>
             <AATimeInput value={nightEnd ?? ''} onBlur={v => onFieldBlur(weekdayNr, 'night_end', v || null)} />

@@ -8,7 +8,7 @@ import { z } from 'zod'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
+import { AuthLayout } from '@/components/auth-layout'
 import { createClient } from '@/lib/supabase'
 
 const registerSchema = z.object({
@@ -57,102 +57,94 @@ export default function RegisterPage() {
 
   if (success) {
     return (
-      <div className="min-h-screen flex items-center justify-center px-4">
-        <Card className="w-full max-w-sm">
-          <CardHeader>
-            <CardTitle className="text-xl font-bold">E-Mail bestätigen</CardTitle>
-            <CardDescription>
-              Wir haben dir eine Bestätigungs-E-Mail geschickt. Bitte klicke auf den Link darin, um dein Konto zu aktivieren.
-            </CardDescription>
-          </CardHeader>
-          <CardFooter>
-            <Link href="/login" className="text-sm text-primary hover:underline">
-              Zurück zum Login
-            </Link>
-          </CardFooter>
-        </Card>
-      </div>
+      <AuthLayout>
+        <div className="text-center space-y-3">
+          <h1 className="text-xl font-bold text-white">E-Mail bestätigen</h1>
+          <p className="text-sm text-white/60">
+            Wir haben dir eine Bestätigungs-E-Mail geschickt. Bitte klicke auf den Link darin, um dein Konto zu aktivieren.
+          </p>
+          <Link href="/login" className="text-sm text-primary hover:underline inline-block mt-2">
+            Zurück zum Login
+          </Link>
+        </div>
+      </AuthLayout>
     )
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center px-4">
-      <Card className="w-full max-w-sm">
-        <CardHeader className="space-y-1">
-          <Link href="/" className="text-xs text-muted-foreground hover:text-foreground transition-colors mb-1 inline-block">
-            ← Zur Startseite
+    <AuthLayout>
+      {/* Logo */}
+      <div className="mb-6 flex items-baseline justify-center gap-0.5" style={{ fontFamily: 'var(--font-inter), sans-serif' }}>
+        <span className="text-2xl font-extrabold text-white">btb</span>
+        <span className="text-2xl font-bold text-primary">.online</span>
+      </div>
+
+      <div className="space-y-1 text-center mb-6">
+        <h1 className="text-xl font-bold text-white">Registrierung</h1>
+        <p className="text-sm text-white/60">
+          Erstelle dein kostenloses Konto
+        </p>
+      </div>
+
+      <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+        {serverError && (
+          <div className="text-sm text-destructive bg-destructive/10 px-3 py-2 rounded-md">
+            {serverError}
+          </div>
+        )}
+
+        <div className="space-y-2">
+          <Label htmlFor="email" className="text-white/80">E-Mail</Label>
+          <Input
+            id="email"
+            type="email"
+            placeholder="name@firma.de"
+            autoComplete="email"
+            {...register('email')}
+          />
+          {errors.email && (
+            <p className="text-xs text-destructive">{errors.email.message}</p>
+          )}
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="password" className="text-white/80">Passwort</Label>
+          <Input
+            id="password"
+            type="password"
+            placeholder="Mindestens 8 Zeichen"
+            autoComplete="new-password"
+            {...register('password')}
+          />
+          {errors.password && (
+            <p className="text-xs text-destructive">{errors.password.message}</p>
+          )}
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="confirmPassword" className="text-white/80">Passwort bestätigen</Label>
+          <Input
+            id="confirmPassword"
+            type="password"
+            autoComplete="new-password"
+            {...register('confirmPassword')}
+          />
+          {errors.confirmPassword && (
+            <p className="text-xs text-destructive">{errors.confirmPassword.message}</p>
+          )}
+        </div>
+
+        <Button type="submit" className="w-full font-semibold" disabled={isLoading}>
+          {isLoading ? 'Wird registriert…' : 'Konto erstellen'}
+        </Button>
+
+        <p className="text-sm text-white/50 text-center">
+          Bereits registriert?{' '}
+          <Link href="/login" className="text-primary hover:underline">
+            Einloggen
           </Link>
-          <CardTitle className="text-2xl font-bold">
-            <span className="text-primary">BTB</span> Registrierung
-          </CardTitle>
-          <CardDescription>
-            Erstelle dein kostenloses Konto
-          </CardDescription>
-        </CardHeader>
-
-        <form onSubmit={handleSubmit(onSubmit)}>
-          <CardContent className="space-y-4">
-            {serverError && (
-              <div className="text-sm text-destructive bg-destructive/10 px-3 py-2 rounded-md">
-                {serverError}
-              </div>
-            )}
-
-            <div className="space-y-2">
-              <Label htmlFor="email">E-Mail</Label>
-              <Input
-                id="email"
-                type="email"
-                placeholder="name@firma.de"
-                autoComplete="email"
-                {...register('email')}
-              />
-              {errors.email && (
-                <p className="text-xs text-destructive">{errors.email.message}</p>
-              )}
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="password">Passwort</Label>
-              <Input
-                id="password"
-                type="password"
-                placeholder="Mindestens 8 Zeichen"
-                autoComplete="new-password"
-                {...register('password')}
-              />
-              {errors.password && (
-                <p className="text-xs text-destructive">{errors.password.message}</p>
-              )}
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="confirmPassword">Passwort bestätigen</Label>
-              <Input
-                id="confirmPassword"
-                type="password"
-                autoComplete="new-password"
-                {...register('confirmPassword')}
-              />
-              {errors.confirmPassword && (
-                <p className="text-xs text-destructive">{errors.confirmPassword.message}</p>
-              )}
-            </div>
-          </CardContent>
-
-          <CardFooter className="flex flex-col gap-3">
-            <Button type="submit" className="w-full font-semibold" disabled={isLoading}>
-              {isLoading ? 'Wird registriert…' : 'Konto erstellen'}
-            </Button>
-            <p className="text-sm text-muted-foreground text-center">
-              Bereits registriert?{' '}
-              <Link href="/login" className="text-primary hover:underline">
-                Einloggen
-              </Link>
-            </p>
-          </CardFooter>
-        </form>
-      </Card>
-    </div>
+        </p>
+      </form>
+    </AuthLayout>
   )
 }

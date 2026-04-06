@@ -276,11 +276,6 @@ export default function ProjektePage() {
             <span className="text-white">Projekte</span>
           </h1>
           <div className="flex items-center gap-2">
-            <Button onClick={handleCreateClick} className="font-semibold">
-              <Plus className="mr-2 h-4 w-4" />
-              <span className="hidden sm:inline">Neues Projekt</span>
-              <span className="sm:hidden">Neu</span>
-            </Button>
             <Button
               variant="ghost"
               size="icon"
@@ -353,6 +348,18 @@ export default function ProjektePage() {
                 onClick={handleProjectClick}
               />
             ))}
+            {/* New project card */}
+            <button
+              onClick={handleCreateClick}
+              className="group flex min-h-[160px] cursor-pointer flex-col items-center justify-center gap-3 rounded-xl border border-white/10 bg-white/5 backdrop-blur-md transition-all hover:border-primary/50 hover:bg-white/10"
+            >
+              <div className="flex h-10 w-10 items-center justify-center rounded-full border border-white/20 text-white/40 transition-colors group-hover:border-primary/50 group-hover:text-primary">
+                <Plus className="h-5 w-5" />
+              </div>
+              <span className="text-sm font-medium text-white/40 transition-colors group-hover:text-white/70">
+                Neues Projekt
+              </span>
+            </button>
           </div>
         )}
       </main>

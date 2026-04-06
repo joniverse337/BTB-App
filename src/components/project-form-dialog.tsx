@@ -100,7 +100,7 @@ export function ProjectFormDialog({
               id="project-name"
               placeholder="z.B. Gleisumbau Hauptbahnhof"
               autoFocus
-              className="border-white/20 bg-white/10 text-white placeholder:text-white/30 focus-visible:border-primary"
+              className="border-white/20 bg-white/10 text-white placeholder:text-white/30 focus-visible:border-primary focus-visible:ring-0 focus-visible:ring-offset-0"
               {...register('name')}
             />
             {errors.name && (
@@ -113,7 +113,7 @@ export function ProjectFormDialog({
             <Input
               id="project-nr"
               placeholder="z.B. KST-2024-001"
-              className="border-white/20 bg-white/10 text-white placeholder:text-white/30 focus-visible:border-primary"
+              className="border-white/20 bg-white/10 text-white placeholder:text-white/30 focus-visible:border-primary focus-visible:ring-0 focus-visible:ring-offset-0"
               {...register('nr')}
             />
             {errors.nr && (
@@ -126,7 +126,7 @@ export function ProjectFormDialog({
             <Input
               id="project-ag"
               placeholder="z.B. Deutsche Bahn AG"
-              className="border-white/20 bg-white/10 text-white placeholder:text-white/30 focus-visible:border-primary"
+              className="border-white/20 bg-white/10 text-white placeholder:text-white/30 focus-visible:border-primary focus-visible:ring-0 focus-visible:ring-offset-0"
               {...register('ag')}
             />
             {errors.ag && (

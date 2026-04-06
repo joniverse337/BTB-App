@@ -1,10 +1,9 @@
 'use client'
 
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { useParams, useRouter, useSearchParams } from 'next/navigation'
-import { ArrowLeft, AlertCircle } from 'lucide-react'
-import { Button } from '@/components/ui/button'
-import { Label } from '@/components/ui/label'
+import { useParams, useSearchParams } from 'next/navigation'
+import { AlertCircle } from 'lucide-react'
+import { ProjectDetailHeader } from '@/components/project-detail-header'
 import { Skeleton } from '@/components/ui/skeleton'
 import { SettingsSection } from '@/components/settings-section'
 import { CategoryManager } from '@/components/category-manager'
@@ -122,14 +121,8 @@ function LogoSizeControl({
 
 export default function ProjectSettingsPage() {
   const params = useParams()
-  const router = useRouter()
   const searchParams = useSearchParams()
   const projectId = params.id as string
-  const fromAA = searchParams.get('from') === 'arbeitsanmeldung'
-  const kwParam = searchParams.get('kw')
-  const backHref = fromAA
-    ? `/projekte/${projectId}/arbeitsanmeldung${kwParam ? `?kw=${kwParam}` : ''}`
-    : `/projekte/${projectId}`
   const seededRef = useRef(false)
 
   // State
@@ -372,12 +365,7 @@ export default function ProjectSettingsPage() {
   if (isLoading) {
     return (
       <div className="min-h-screen">
-        <header className="border-b">
-          <div className="container mx-auto flex items-center gap-4 px-4 py-4 md:px-6">
-            <Skeleton className="h-8 w-8 rounded" />
-            <Skeleton className="h-6 w-48" />
-          </div>
-        </header>
+        <ProjectDetailHeader project={null} isLoading={true} />
         <main className="container mx-auto px-4 py-6 md:px-6 md:py-8">
           <div className="grid grid-cols-1 gap-6 lg:grid-cols-5">
             <div className="space-y-6 lg:col-span-3">
@@ -397,19 +385,7 @@ export default function ProjectSettingsPage() {
   if (error || !project) {
     return (
       <div className="min-h-screen">
-        <header className="border-b">
-          <div className="container mx-auto flex items-center gap-4 px-4 py-4 md:px-6">
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => router.push('/projekte')}
-              aria-label="Zurück zu Projekte"
-            >
-              <ArrowLeft className="h-4 w-4" />
-            </Button>
-            <h1 className="text-xl font-bold">Projekteinstellungen</h1>
-          </div>
-        </header>
+        <ProjectDetailHeader project={null} isLoading={false} />
         <div className="container mx-auto px-4 py-16 text-center md:px-6">
           <AlertCircle className="mx-auto mb-4 h-12 w-12 text-destructive" />
           <h2 className="mb-2 text-lg font-semibold">
@@ -426,24 +402,7 @@ export default function ProjectSettingsPage() {
   return (
     <div className="min-h-screen">
       {/* Header */}
-      <header className="border-b">
-        <div className="container mx-auto flex items-center gap-4 px-4 py-4 md:px-6">
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => router.push(backHref)}
-            aria-label="Zurück zum Projekt"
-          >
-            <ArrowLeft className="h-4 w-4" />
-          </Button>
-          <div className="min-w-0 flex-1">
-            <h1 className="truncate text-xl font-bold">
-              <span className="text-primary">BTB</span>{' '}
-              {project.name} - Einstellungen
-            </h1>
-          </div>
-        </div>
-      </header>
+      <ProjectDetailHeader project={project} isLoading={false} />
 
       {/* Main content: 2-column layout */}
       <main className="container mx-auto px-4 py-6 md:px-6 md:py-8">

@@ -1,34 +1,14 @@
 import { NextResponse } from 'next/server'
 import { createAuthenticatedRoute, parseJsonBody } from '@/lib/api-utils'
 import { joinCompanySchema, type JoinCompanyData } from '@/lib/validations/company'
-import { RATE_LIMIT } from '@/lib/constants'
-
-// In-memory rate limiter: per user
-const rateLimitMap = new Map<string, { count: number; resetAt: number }>()
-
-function isRateLimited(userId: string): boolean {
-  const now = Date.now()
-  const entry = rateLimitMap.get(userId)
-
-  if (!entry || now > entry.resetAt) {
-    rateLimitMap.set(userId, { count: 1, resetAt: now + RATE_LIMIT.JOIN_WINDOW_MS })
-    return false
-  }
-
-  if (entry.count >= RATE_LIMIT.JOIN_MAX) {
-    return true
-  }
-
-  entry.count++
-  return false
-}
+import { isJoinRateLimited } from '@/lib/rate-limit'
 
 // Generic error message to prevent enumeration attacks
 const INVALID_CODE_ERROR = 'Dieser Code ist nicht gültig.'
 
 export const POST = createAuthenticatedRoute(async (request, { user, serviceClient }) => {
   // 1. Rate limit check (per userId)
-  if (isRateLimited(user.id)) {
+  if (await isJoinRateLimited(user.id)) {
     return NextResponse.json(
       { error: 'Zu viele Versuche. Bitte warte eine Minute.' },
       { status: 429 }

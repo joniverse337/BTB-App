@@ -1,27 +1,6 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
-import { RATE_LIMIT } from '@/lib/constants'
-
-// In-memory rate limiter for auth page access
-// Note: per-instance only — Supabase's built-in limits cover the actual API calls
-const rateLimitMap = new Map<string, { count: number; resetAt: number }>()
-
-function isRateLimited(ip: string): boolean {
-  const now = Date.now()
-  const entry = rateLimitMap.get(ip)
-
-  if (!entry || now > entry.resetAt) {
-    rateLimitMap.set(ip, { count: 1, resetAt: now + RATE_LIMIT.AUTH_WINDOW_MS })
-    return false
-  }
-
-  if (entry.count >= RATE_LIMIT.AUTH_MAX) {
-    return true
-  }
-
-  entry.count++
-  return false
-}
+import { isAuthRateLimited } from '@/lib/rate-limit'
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
@@ -37,7 +16,7 @@ export async function middleware(request: NextRequest) {
       ?? request.headers.get('x-real-ip')
       ?? 'unknown'
 
-    if (isRateLimited(ip)) {
+    if (await isAuthRateLimited(ip)) {
       return new NextResponse('Too Many Requests', {
         status: 429,
         headers: { 'Retry-After': '900' },

@@ -4,6 +4,13 @@ const nextConfig: NextConfig = {
   async headers() {
     return [
       {
+        // Statische Assets: CORS auf eigene Domain beschränken
+        source: '/_next/static/(.*)',
+        headers: [
+          { key: 'Access-Control-Allow-Origin', value: 'https://btb-app.vercel.app' },
+        ],
+      },
+      {
         source: '/(.*)',
         headers: [
           { key: 'X-Frame-Options', value: 'DENY' },
@@ -24,6 +31,7 @@ const nextConfig: NextConfig = {
               `img-src 'self' data: blob: https://*.supabase.co`,
               "font-src 'self' https://fonts.gstatic.com",
               "frame-ancestors 'none'",
+              "form-action 'self'",
             ].join('; '),
           },
         ],

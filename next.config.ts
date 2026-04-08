@@ -30,22 +30,7 @@ const nextConfig: NextConfig = {
             key: 'Strict-Transport-Security',
             value: 'max-age=63072000; includeSubDomains; preload',
           },
-          {
-            // CSP: 'unsafe-inline' in script-src ist eine bekannte Next.js App Router Limitation.
-            // Next.js benötigt inline scripts für den RSC-Payload (Hydration).
-            // Eine saubere Lösung wäre Nonces via Middleware – aktuell nicht implementiert.
-            key: 'Content-Security-Policy',
-            value: [
-              "default-src 'self'",
-              "script-src 'self' 'unsafe-inline'",
-              "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
-              `connect-src 'self' ${process.env.NEXT_PUBLIC_SUPABASE_URL} https://*.supabase.co`,
-              `img-src 'self' data: blob: https://*.supabase.co`,
-              "font-src 'self' https://fonts.gstatic.com",
-              "frame-ancestors 'none'",
-              "form-action 'self'",
-            ].join('; '),
-          },
+          // CSP wird dynamisch per Request in middleware.ts gesetzt (mit Nonce)
         ],
       },
     ]

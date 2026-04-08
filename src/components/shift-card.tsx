@@ -134,109 +134,42 @@ function TimeInput({
   )
 }
 
-function RichTextArea({
+function PlainTextArea({
   value,
   onBlur,
   placeholder,
   minHeight,
 }: {
   value: string
-  onBlur: (html: string) => void
+  onBlur: (text: string) => void
   placeholder?: string
   minHeight: string
 }) {
-  const ref = useRef<HTMLDivElement>(null)
-  const [underlineActive, setUnderlineActive] = useState(false)
-
-  useEffect(() => {
-    if (ref.current) {
-      import('dompurify').then(({ default: DOMPurify }) => {
-        if (ref.current) {
-          ref.current.innerHTML = DOMPurify.sanitize(value, {
-            ALLOWED_TAGS: ['b', 'u', 'i', 'br', 'span', 'div', 'p'],
-            ALLOWED_ATTR: [],
-          })
-        }
-      })
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
-
-  const checkUnderline = () => {
-    setUnderlineActive(document.queryCommandState('underline'))
-  }
+  // Bestehende Werte können HTML-Tags enthalten (von der früheren PlainTextArea) – diese entfernen
+  const stripHtml = (html: string) => html.replace(/<[^>]*>/g, '').replace(/&nbsp;/g, ' ').trim()
 
   return (
-    <div style={{ position: 'relative' }}>
-      <div
-        ref={ref}
-        contentEditable
-        suppressContentEditableWarning
-        data-placeholder={placeholder}
-        onBlur={() => {
-          if (ref.current) {
-            import('dompurify').then(({ default: DOMPurify }) => {
-              if (ref.current) {
-                const sanitized = DOMPurify.sanitize(ref.current.innerHTML, {
-                  ALLOWED_TAGS: ['b', 'u', 'i', 'br', 'span', 'div', 'p'],
-                  ALLOWED_ATTR: [],
-                })
-                onBlur(sanitized)
-              }
-            })
-          }
-        }}
-        onKeyUp={checkUnderline}
-        onMouseUp={checkUnderline}
-        onSelect={checkUnderline}
-        style={{
-          width: '100%',
-          border: '1px solid #e8e8e8',
-          borderRadius: '3px',
-          background: '#fafafa',
-          fontFamily: "var(--font-ibm-plex-sans), sans-serif",
-          fontSize: '9pt',
-          color: '#222',
-          outline: 'none',
-          padding: '4px 28px 4px 5px',
-          minHeight,
-          boxSizing: 'border-box',
-          whiteSpace: 'pre-wrap',
-          wordBreak: 'break-word',
-        }}
-      />
-      <button
-        onMouseDown={e => {
-          e.preventDefault()
-          document.execCommand('underline')
-          setUnderlineActive(prev => !prev)
-        }}
-        title="Unterstreichen"
-        style={{
-          position: 'absolute',
-          top: '3px',
-          right: '3px',
-          width: '18px',
-          height: '18px',
-          border: `1px solid ${underlineActive ? '#1a2040' : '#ddd'}`,
-          borderRadius: '2px',
-          background: underlineActive ? '#1a2040' : '#f0f0f0',
-          cursor: 'pointer',
-          fontSize: '9pt',
-          fontFamily: "var(--font-ibm-plex-sans), sans-serif",
-          fontWeight: 700,
-          textDecoration: 'underline',
-          color: underlineActive ? '#fff' : '#444',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          padding: 0,
-          lineHeight: 1,
-        }}
-      >
-        U
-      </button>
-    </div>
+    <textarea
+      defaultValue={stripHtml(value)}
+      placeholder={placeholder}
+      onBlur={e => onBlur(e.target.value)}
+      style={{
+        width: '100%',
+        border: '1px solid #e8e8e8',
+        borderRadius: '3px',
+        background: '#fafafa',
+        fontFamily: "var(--font-ibm-plex-sans), sans-serif",
+        fontSize: '9pt',
+        color: '#222',
+        outline: 'none',
+        padding: '4px 5px',
+        minHeight,
+        boxSizing: 'border-box',
+        whiteSpace: 'pre-wrap',
+        wordBreak: 'break-word',
+        resize: 'vertical',
+      }}
+    />
   )
 }
 
@@ -591,7 +524,7 @@ export function ShiftCard({
         {/* Ausgefuehrte Arbeiten */}
         <div style={{ ...sectionStyle, flexShrink: 0 }}>
           <div style={sectionTitleStyle}>Ausgeführte Arbeiten</div>
-          <RichTextArea value={shift.arb || ''} onBlur={html => onUpdateShift(shift.id, 'arb', html)} placeholder="Beschreibung der durchgeführten Arbeiten..." minHeight="72px" />
+          <PlainTextArea value={shift.arb || ''} onBlur={html => onUpdateShift(shift.id, 'arb', html)} placeholder="Beschreibung der durchgeführten Arbeiten..." minHeight="72px" />
         </div>
 
         <div style={{ height: '1.2em', flexShrink: 0 }} />
@@ -599,7 +532,7 @@ export function ShiftCard({
         {/* Vorkommnisse */}
         <div style={{ ...sectionStyle, flexShrink: 0 }}>
           <div style={sectionTitleStyle}>Vorkommnisse / Behinderungen</div>
-          <RichTextArea value={shift.vor || ''} onBlur={html => onUpdateShift(shift.id, 'vor', html)} placeholder="Behinderungen, Zwischenfälle..." minHeight="44px" />
+          <PlainTextArea value={shift.vor || ''} onBlur={html => onUpdateShift(shift.id, 'vor', html)} placeholder="Behinderungen, Zwischenfälle..." minHeight="44px" />
         </div>
 
         {/* Signature line (absolute bottom) */}

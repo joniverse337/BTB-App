@@ -77,13 +77,19 @@ export default function ArbeitsanmeldungPage() {
   const [zoom, setZoom] = useState(75)
   const [printedWeeks, setPrintedWeeks] = useState<Set<string>>(new Set())
 
-  // Load printed-weeks from localStorage
+  // Load printed-weeks from DB (which KWs have existing work_notifications)
   useEffect(() => {
     if (!projectId) return
-    try {
-      const stored = localStorage.getItem(`aa_printed_${projectId}`)
-      if (stored) setPrintedWeeks(new Set(JSON.parse(stored)))
-    } catch {}
+    const supabase = createClient()
+    supabase
+      .from('work_notifications')
+      .select('year, calendar_week')
+      .eq('project_id', projectId)
+      .then(({ data }) => {
+        if (!data) return
+        const keys = new Set(data.map((r: { year: number; calendar_week: number }) => `${r.year}_${r.calendar_week}`))
+        setPrintedWeeks(keys)
+      })
   }, [projectId])
 
   // Logo state
@@ -538,7 +544,6 @@ export default function ArbeitsanmeldungPage() {
       setPrintedWeeks((prev) => {
         const next = new Set([...prev])
         next.delete(key)
-        localStorage.setItem(`aa_printed_${projectId}`, JSON.stringify([...next]))
         return next
       })
       toast.success('Arbeitsanmeldung gelöscht.')
@@ -561,14 +566,9 @@ export default function ArbeitsanmeldungPage() {
     window.print()
     // Restore title after print dialog closes
     window.addEventListener('afterprint', () => { document.title = prevTitle }, { once: true })
-    // Mark as printed — persisted in localStorage
     if (activeWeek) {
       const key = `${activeWeek.year}_${activeWeek.kw}`
-      setPrintedWeeks((prev) => {
-        const next = new Set([...prev, key])
-        localStorage.setItem(`aa_printed_${projectId}`, JSON.stringify([...next]))
-        return next
-      })
+      setPrintedWeeks((prev) => new Set([...prev, key]))
     }
   }
 

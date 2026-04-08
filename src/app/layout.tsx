@@ -2,6 +2,7 @@ import type { Metadata } from "next"
 import "./globals.css"
 import { Toaster } from 'sonner'
 import { Inter, IBM_Plex_Sans } from 'next/font/google'
+import { headers } from 'next/headers'
 
 const inter = Inter({
   subsets: ['latin'],
@@ -22,9 +23,16 @@ export const metadata: Metadata = {
   description: "Dein Bautagesbericht – schnell erstellt, perfekt dokumentiert, einfach gemanagt",
 }
 
-export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
+// Async Layout: headers() lesen macht die Seite dynamisch und gibt Next.js
+// die Nonce aus dem x-nonce Request-Header. Next.js wendet die Nonce automatisch
+// auf seine eigenen Inline-<script>-Tags an (Hydration, Chunks, etc.).
+// In der Middleware CSP sorgt 'strict-dynamic' dafür, dass alle dynamisch
+// nachgeladenen Scripts (Lazy-Loading, Code-Splitting) ebenfalls erlaubt sind.
+export default async function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
+  const nonce = (await headers()).get('x-nonce') ?? ''
+
   return (
-    <html lang="de" className={`dark ${inter.variable} ${ibmPlexSans.variable}`}>
+    <html lang="de" className={`dark ${inter.variable} ${ibmPlexSans.variable}`} suppressHydrationWarning>
       <body className="antialiased">
         {children}
         <Toaster theme="dark" />

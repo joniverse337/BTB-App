@@ -11,8 +11,12 @@ function generateNonce(): string {
 function buildCSP(nonce: string): string {
   return [
     "default-src 'self'",
-    `script-src 'self' 'nonce-${nonce}'`,
-    "style-src-elem 'self' https://fonts.googleapis.com",
+    // 'nonce-...' erlaubt explizit markierte Inline-Scripts
+    // 'strict-dynamic' vertraut allen Scripts, die von einem Nonce-Script geladen werden
+    // 'unsafe-inline' ist Fallback für ältere Browser (wird von strict-dynamic ignoriert)
+    `script-src 'nonce-${nonce}' 'strict-dynamic' 'self' 'unsafe-inline'`,
+    // Styles: Nonce für Inline-Styles + Google Fonts
+    `style-src-elem 'self' 'nonce-${nonce}' 'unsafe-inline' https://fonts.googleapis.com`,
     "style-src-attr 'unsafe-inline'",
     `connect-src 'self' ${process.env.NEXT_PUBLIC_SUPABASE_URL} https://*.supabase.co`,
     `img-src 'self' data: blob: https://*.supabase.co`,
@@ -35,7 +39,9 @@ export async function middleware(request: NextRequest) {
   const nonce = generateNonce()
   const csp = buildCSP(nonce)
 
-  // x-nonce in Request-Headers injecten (für zukünftige <Script nonce={nonce}> in Server Components)
+  // x-nonce in Request-Headers injecten — das Root-Layout liest diesen Header
+  // via headers().get('x-nonce'), wodurch Next.js die Nonce auf seine eigenen
+  // Inline-<script>-Tags anwendet (Hydration, Chunk-Loading, etc.)
   const requestHeaders = new Headers(request.headers)
   requestHeaders.set('x-nonce', nonce)
 

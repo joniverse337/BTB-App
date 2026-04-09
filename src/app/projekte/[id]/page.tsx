@@ -164,20 +164,28 @@ function buildShiftPageDiv(shift: ShiftWithDetails, date: Date, project: Project
 </div>`
 }
 
-function buildShiftPrintHtml(shift: ShiftWithDetails, date: Date, project: Project | null, logo?: { url: string; x: number; y: number; size: number } | null): string {
+// The popup inherits the opener's CSP. With a nonce in style-src-elem,
+// unsafe-inline is ignored — so we must pass the same nonce to <style> and <script>.
+function getCspNonce(): string {
+  if (typeof document === 'undefined') return ''
+  return (document.querySelector<HTMLScriptElement>('script[nonce]'))?.nonce ?? ''
+}
+
+function buildShiftPrintHtml(shift: ShiftWithDetails, date: Date, project: Project | null, logo?: { url: string; x: number; y: number; size: number } | null, nonce = ''): string {
   const isNight = shift.typ === 'nacht'
   const dateLabel = isNight ? formatNightShiftDate(date) : formatCardDate(date)
+  const n = nonce ? ` nonce="${nonce}"` : ''
   return `<!DOCTYPE html>
 <html lang="de">
 <head>
 <meta charset="UTF-8">
 <title>BTB - ${escHtml(project?.name)} - ${dateLabel}</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
-<style>${PRINT_STYLES}</style>
+<style${n}>${PRINT_STYLES}</style>
 </head>
 <body>
 ${buildShiftPageDiv(shift, date, project, false, logo)}
-<script>window.onload = function() { window.print(); }<\/script>
+<script${n}>window.onload = function() { window.print(); }<\/script>
 </body>
 </html>`
 }
@@ -841,7 +849,7 @@ export default function ProjectDetailPage() {
   // --- Print ---
 
   const handlePrintShift = (shift: ShiftWithDetails, date: Date) => {
-    const html = buildShiftPrintHtml(shift, date, project, projectLogo)
+    const html = buildShiftPrintHtml(shift, date, project, projectLogo, getCspNonce())
     const win = window.open('', '_blank')
     if (!win) {
       toast.warning('Pop-up-Blocker aktiv. Bitte erlaube Pop-ups für diese Seite.')
@@ -849,7 +857,6 @@ export default function ProjectDetailPage() {
     }
     win.document.write(html)
     win.document.close()
-    win.onload = () => win.print()
   }
 
   const handlePrintKW = () => {
@@ -874,17 +881,19 @@ export default function ProjectDetailPage() {
       buildShiftPageDiv(shift, date, project, i < kwShifts.length - 1, projectLogo)
     ).join('\n')
 
+    const nonce = getCspNonce()
+    const n = nonce ? ` nonce="${nonce}"` : ''
     const fullHtml = `<!DOCTYPE html>
 <html lang="de">
 <head>
 <meta charset="UTF-8">
 <title>BTB - ${escHtml(project?.name)} - KW ${activeWeek.kw}</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
-<style>${PRINT_STYLES}</style>
+<style${n}>${PRINT_STYLES}</style>
 </head>
 <body>
 ${pages}
-<script>window.onload = function() { window.print(); }<\/script>
+<script${n}>window.onload = function() { window.print(); }<\/script>
 </body>
 </html>`
 

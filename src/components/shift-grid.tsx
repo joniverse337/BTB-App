@@ -53,7 +53,7 @@ function Slot({
     >
       {hasActions && (
         <div
-          className="opacity-35 group-hover:opacity-100 transition-opacity pointer-events-none group-hover:pointer-events-auto"
+          className="opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none group-hover:pointer-events-auto"
           style={{
             position: 'absolute', top: '8px', left: '50%', transform: 'translateX(-50%)',
             zIndex: 20, display: 'flex', gap: '6px',

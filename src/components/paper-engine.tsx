@@ -63,7 +63,7 @@ export function PaperEngine({
           Klasse paper-engine-zoom-wrapper wird in @media print transform:none gesetzt,
           damit position:fixed auf dem Paper korrekt relativ zum Viewport funktioniert. */}
       <div
-        className="paper-engine-zoom-wrapper"
+        className="paper-engine-zoom-wrapper group"
         style={{
           transformOrigin: 'top center',
           transform: `scale(${zoom / 100})`,
@@ -92,18 +92,7 @@ export function PaperEngine({
           {/* Schwebende Aktions-Buttons (Print + optional Delete) — verschwinden beim Drucken */}
           <div
             data-no-print="true"
-            className="paper-engine-action-bar"
-            style={{
-              position: 'absolute',
-              top: '8px',
-              left: '50%',
-              transform: 'translateX(-50%)',
-              zIndex: 30,
-              display: 'flex',
-              gap: '6px',
-              opacity: 0.35,
-              transition: 'opacity 0.15s',
-            }}
+            className="paper-engine-action-bar absolute top-2 left-1/2 -translate-x-1/2 z-30 flex gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none group-hover:pointer-events-auto"
           >
             <button
               onClick={handlePrint}
@@ -147,13 +136,7 @@ export function PaperEngine({
         </div>
       </div>
 
-      {/* Globaler Hover-Effekt: Print-Button erscheint wenn man über das Blatt fährt */}
-      <style>{`
-        @page { size: ${dims.width} ${dims.height}; margin: 0; }
-        .paper-print-target:hover .paper-engine-action-bar {
-          opacity: 1 !important;
-        }
-      `}</style>
+      <style>{`@page { size: ${dims.width} ${dims.height}; margin: 0; }`}</style>
     </div>
   )
 }

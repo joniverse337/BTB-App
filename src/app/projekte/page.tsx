@@ -271,8 +271,10 @@ export default function ProjektePage() {
       {/* Header */}
       <header className="border-b border-white/10 bg-white/5 backdrop-blur-md">
         <div className="container mx-auto flex items-center justify-between px-4 py-4 md:px-6">
-          <h1 className="text-xl font-bold">
-            <span className="text-primary">BTB</span>{' '}
+          <h1 className="text-xl font-bold flex items-center gap-2">
+            <a href="/projekte" className="btb-logo-link">
+              <span style={{ fontFamily: 'var(--font-inter), sans-serif', fontWeight: 800, color: '#e8c547', letterSpacing: '-1px' }}>BTB</span>
+            </a>
             <span className="text-white">Projekte</span>
           </h1>
           <div className="flex items-center gap-2">

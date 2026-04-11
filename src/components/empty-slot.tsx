@@ -25,7 +25,7 @@ export function EmptySlot({ date, typ, onCreateEmpty, onCopyPrevious, onCreateFr
   const btnBorder = isTag ? 'rgba(232,197,71,.3)' : 'rgba(74,124,247,.3)'
 
   return (
-    <div style={{
+    <div className={isTag ? 'empty-slot-hover-tag' : 'empty-slot-hover-nacht'} style={{
       width: '210mm', height: '297mm',
       background: isTag ? 'rgba(232,197,71,.07)' : 'rgba(74,124,247,.07)',
       border: `2px solid ${isTag ? 'rgba(232,197,71,.5)' : 'rgba(74,124,247,.5)'}`,
@@ -40,14 +40,14 @@ export function EmptySlot({ date, typ, onCreateEmpty, onCopyPrevious, onCreateFr
       <div style={{ fontFamily: "var(--font-inter), sans-serif", fontWeight: 700, fontSize: '26pt', color: '#dde2f0', opacity: 0.7 }}>{wt}</div>
       <div style={{ fontSize: '18pt', color: '#7a85a8', marginTop: '-4px' }}>{dateStr}</div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', width: '100%', maxWidth: '320px', marginTop: '8px' }}>
-        <button onClick={onCreateEmpty} style={{
+        <button onClick={onCreateEmpty} className="empty-slot-btn-primary" style={{
           padding: '16px 40px', borderRadius: '10px',
           border: `1px solid ${btnBorder}`, background: btnBg, color: btnColor,
           fontSize: '24px', fontWeight: 600, fontFamily: "var(--font-ibm-plex-sans), sans-serif", cursor: 'pointer',
         }}>
           {isTag ? 'Tagschicht anlegen' : 'Nachtschicht anlegen'}
         </button>
-        <button onClick={onCopyPrevious} style={{
+        <button onClick={onCopyPrevious} className="empty-slot-btn-secondary" style={{
           padding: '16px 40px', borderRadius: '10px',
           border: '1px solid #2b3454', background: 'rgba(255,255,255,.05)', color: '#7a85a8',
           fontSize: '24px', fontWeight: 600, fontFamily: "var(--font-ibm-plex-sans), sans-serif", cursor: 'pointer',
@@ -55,7 +55,7 @@ export function EmptySlot({ date, typ, onCreateEmpty, onCopyPrevious, onCreateFr
           Vortag übernehmen
         </button>
         {onCreateFromAA && (
-          <button onClick={onCreateFromAA} style={{
+          <button onClick={onCreateFromAA} className="empty-slot-btn-secondary" style={{
             padding: '16px 40px', borderRadius: '10px',
             border: '1px solid #2b3454', background: 'rgba(255,255,255,.05)', color: '#7a85a8',
             fontSize: '20px', fontWeight: 600, fontFamily: "var(--font-ibm-plex-sans), sans-serif", cursor: 'pointer',

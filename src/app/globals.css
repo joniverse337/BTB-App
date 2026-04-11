@@ -82,6 +82,70 @@ input:-webkit-autofill:focus {
   caret-color: hsl(var(--foreground));
 }
 
+/* BTB Logo — Pulse Button */
+@keyframes btbPulse {
+  0%   { box-shadow: 0 0 0 0px  rgba(232, 197, 71, 1.0); }
+  50%  { box-shadow: 0 0 0 1.5px rgba(232, 197, 71, 0.5); }
+  100% { box-shadow: 0 0 0 2px  rgba(232, 197, 71, 0); }
+}
+.btb-logo-link {
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  border-radius: 5px;
+  padding: 1px 6px;
+  text-decoration: none !important;
+}
+.btb-logo-link:hover {
+  animation: btbPulse 2s ease-out infinite;
+}
+
+/* EmptySlot Card Hover Ring */
+@keyframes emptySlotPulseTag {
+  0%   { box-shadow: 0 0 0 0px  rgba(232, 197, 71, 1.0); }
+  25%  { box-shadow: 0 0 0 1px  rgba(232, 197, 71, 0.92); }
+  50%  { box-shadow: 0 0 0 3px  rgba(232, 197, 71, 0.65); }
+  80%  { box-shadow: 0 0 0 3px  rgba(232, 197, 71, 0.1); }
+  100% { box-shadow: 0 0 0 3px  rgba(232, 197, 71, 0); }
+}
+@keyframes emptySlotPulseNacht {
+  0%   { box-shadow: 0 0 0 0px  rgba(74, 124, 247, 1.0); }
+  25%  { box-shadow: 0 0 0 1px  rgba(74, 124, 247, 0.92); }
+  50%  { box-shadow: 0 0 0 3px  rgba(74, 124, 247, 0.65); }
+  80%  { box-shadow: 0 0 0 3px  rgba(74, 124, 247, 0.1); }
+  100% { box-shadow: 0 0 0 3px  rgba(74, 124, 247, 0); }
+}
+.empty-slot-hover-tag:hover {
+  animation: emptySlotPulseTag 1.4s linear infinite;
+}
+.empty-slot-hover-nacht:hover {
+  animation: emptySlotPulseNacht 1.4s linear infinite;
+}
+
+/* EmptySlot Buttons */
+.empty-slot-btn-primary {
+  transition: filter 0.15s, transform 0.1s;
+}
+.empty-slot-btn-primary:hover {
+  filter: brightness(1.18);
+  transform: translateY(-1px);
+}
+.empty-slot-btn-primary:active {
+  transform: translateY(0);
+  filter: brightness(0.95);
+}
+.empty-slot-btn-secondary {
+  transition: border-color 0.15s, color 0.15s, transform 0.1s;
+}
+.empty-slot-btn-secondary:hover {
+  border-color: rgba(255,255,255,0.18) !important;
+  color: #bcc3d8 !important;
+  transform: translateY(-1px);
+}
+.empty-slot-btn-secondary:active {
+  transform: translateY(0);
+}
+
 /* Hide number input spinners for btb card inputs */
 .btb-no-spin::-webkit-inner-spin-button,
 .btb-no-spin::-webkit-outer-spin-button {

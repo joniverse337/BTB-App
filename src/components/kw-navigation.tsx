@@ -207,11 +207,11 @@ export function KWNavigation({
         {onSearch && (
           <div
             className={cn(
-              'flex flex-col gap-0.5 rounded-md border px-2 py-0 shrink-0 justify-center',
+              'flex flex-col gap-0.5 rounded-md border px-2 py-0 shrink-0 justify-center transition-colors',
               'h-[69px]',
               isSearchActive && !blinkOff
                 ? 'border-[#e8c547] bg-[#e8c547]/10'
-                : 'border-border bg-card'
+                : 'border-border bg-card hover:border-primary/40'
             )}
             style={{ minWidth: '180px', transition: blinkOff ? 'none' : 'border-color 0.08s, background-color 0.08s' }}
           >

@@ -215,12 +215,6 @@ export function LagerplaetzeActionBar({
         <Undo2 size={13} />
       </button>
 
-      {/* Active location name */}
-      {activeLocationName && (
-        <span className="text-[11px] text-muted-foreground whitespace-nowrap pl-1">
-          auf <span className="font-semibold text-foreground">{activeLocationName}</span> anwenden
-        </span>
-      )}
     </div>
   )
 }

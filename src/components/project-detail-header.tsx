@@ -3,11 +3,44 @@
 import Link from 'next/link'
 import { usePathname, useSearchParams } from 'next/navigation'
 import { Settings } from 'lucide-react'
+import { useState } from 'react'
 import type { Project } from '@/lib/validations/project'
 
 interface ProjectDetailHeaderProps {
   project: Project | null
   isLoading: boolean
+}
+
+function NavTab({
+  href,
+  active,
+  dimmed,
+  onMouseEnter,
+  onMouseLeave,
+  children,
+}: {
+  href: string
+  active: boolean
+  dimmed: boolean
+  onMouseEnter: () => void
+  onMouseLeave: () => void
+  children: React.ReactNode
+}) {
+  const color = dimmed ? '#8a90a8' : '#e8c547'
+  return (
+    <Link
+      href={href}
+      onMouseEnter={onMouseEnter}
+      onMouseLeave={onMouseLeave}
+      className="flex items-center px-3 py-[5px] rounded-md text-[13px] font-medium no-underline transition-colors"
+      style={{
+        border: active ? `1px solid #e8c547` : '1px solid transparent',
+        color,
+      }}
+    >
+      {children}
+    </Link>
+  )
 }
 
 export function ProjectDetailHeader({ project, isLoading }: ProjectDetailHeaderProps) {
@@ -20,6 +53,16 @@ export function ProjectDetailHeader({ project, isLoading }: ProjectDetailHeaderP
   const isOnBTB = !isOnAA && !isOnGeraete && !isOnLagerplaetze && !isOnSettings
   const kwSuffix = searchParams.get('kw') ? `?kw=${searchParams.get('kw')}` : ''
 
+  const [hovered, setHovered] = useState<string | null>(null)
+
+  // When hovering an inactive tab, dim the active one
+  const anyInactiveHovered = hovered !== null && (
+    (hovered === 'btb' && !isOnBTB) ||
+    (hovered === 'aa' && !isOnAA) ||
+    (hovered === 'geraete' && !isOnGeraete) ||
+    (hovered === 'lagerplaetze' && !isOnLagerplaetze)
+  )
+
   return (
     <header style={{
       background: '#171c28',
@@ -30,7 +73,7 @@ export function ProjectDetailHeader({ project, isLoading }: ProjectDetailHeaderP
         display: 'flex', alignItems: 'center', gap: '14px',
         padding: '0 22px', height: '52px',
       }}>
-        <Link href="/projekte" style={{ textDecoration: 'none', flexShrink: 0 }}>
+        <Link href="/projekte" className="btb-logo-link" style={{ flexShrink: 0 }}>
           <span style={{
             fontFamily: "var(--font-inter), sans-serif", fontWeight: 800, fontSize: '20px',
             color: '#e8c547', letterSpacing: '-1px',
@@ -49,62 +92,46 @@ export function ProjectDetailHeader({ project, isLoading }: ProjectDetailHeaderP
               {project.name}
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '4px', flexShrink: 0 }}>
-              <Link
+              <NavTab
                 href={`/projekte/${project.id}${kwSuffix}`}
-                style={{
-                  display: 'flex', alignItems: 'center',
-                  padding: '5px 12px', borderRadius: '6px', textDecoration: 'none',
-                  border: isOnBTB ? '1px solid #e8c547' : '1px solid transparent',
-                  color: isOnBTB ? '#e8c547' : '#8a90a8',
-                  fontSize: '13px', fontWeight: 500,
-                }}
+                active={isOnBTB}
+                dimmed={isOnBTB ? anyInactiveHovered : hovered !== 'btb'}
+                onMouseEnter={() => setHovered('btb')}
+                onMouseLeave={() => setHovered(null)}
               >
                 Bautagesberichte
-              </Link>
-              <Link
+              </NavTab>
+              <NavTab
                 href={`/projekte/${project.id}/arbeitsanmeldung${kwSuffix}`}
-                style={{
-                  display: 'flex', alignItems: 'center',
-                  padding: '5px 12px', borderRadius: '6px', textDecoration: 'none',
-                  border: isOnAA ? '1px solid #e8c547' : '1px solid transparent',
-                  color: isOnAA ? '#e8c547' : '#8a90a8',
-                  fontSize: '13px', fontWeight: 500,
-                }}
+                active={isOnAA}
+                dimmed={isOnAA ? anyInactiveHovered : hovered !== 'aa'}
+                onMouseEnter={() => setHovered('aa')}
+                onMouseLeave={() => setHovered(null)}
               >
                 Arbeitsanmeldung
-              </Link>
-              <Link
+              </NavTab>
+              <NavTab
                 href={`/projekte/${project.id}/geraete`}
-                style={{
-                  display: 'flex', alignItems: 'center',
-                  padding: '5px 12px', borderRadius: '6px', textDecoration: 'none',
-                  border: isOnGeraete ? '1px solid #e8c547' : '1px solid transparent',
-                  color: isOnGeraete ? '#e8c547' : '#8a90a8',
-                  fontSize: '13px', fontWeight: 500,
-                }}
+                active={isOnGeraete}
+                dimmed={isOnGeraete ? anyInactiveHovered : hovered !== 'geraete'}
+                onMouseEnter={() => setHovered('geraete')}
+                onMouseLeave={() => setHovered(null)}
               >
                 Gerätebedarf
-              </Link>
-              <Link
+              </NavTab>
+              <NavTab
                 href={`/projekte/${project.id}/lagerplaetze`}
-                style={{
-                  display: 'flex', alignItems: 'center',
-                  padding: '5px 12px', borderRadius: '6px', textDecoration: 'none',
-                  border: isOnLagerplaetze ? '1px solid #e8c547' : '1px solid transparent',
-                  color: isOnLagerplaetze ? '#e8c547' : '#8a90a8',
-                  fontSize: '13px', fontWeight: 500,
-                }}
+                active={isOnLagerplaetze}
+                dimmed={isOnLagerplaetze ? anyInactiveHovered : hovered !== 'lagerplaetze'}
+                onMouseEnter={() => setHovered('lagerplaetze')}
+                onMouseLeave={() => setHovered(null)}
               >
                 Lagerplätze
-              </Link>
+              </NavTab>
             </div>
             <Link
               href={`/projekte/${project.id}/einstellungen?from=${isOnAA ? 'arbeitsanmeldung' : isOnGeraete ? 'geraete' : isOnLagerplaetze ? 'lagerplaetze' : 'btb'}${kwSuffix ? '&' + kwSuffix.slice(1) : ''}`}
-              style={{
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                width: '32px', height: '32px', borderRadius: '6px',
-                color: isOnSettings ? '#e8c547' : '#8a90a8', flexShrink: 0,
-              }}
+              className={`flex items-center justify-center w-8 h-8 rounded-md transition-colors shrink-0 ${isOnSettings ? 'text-[#e8c547]' : 'text-[#8a90a8] hover:text-[#e8c547]'}`}
               aria-label="Projekteinstellungen"
               title="Projekteinstellungen"
             >

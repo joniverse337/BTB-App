@@ -21,6 +21,14 @@
 - Druckfunktion (`handlePrintShift`, `handlePrintKW`) bereits implementiert in `page.tsx`
 - Firmenname/Adresse/Logo: werden aus `companies` (PROJ-5) gelesen — `adr`, `logo_url`, `logo_x`, `logo_y` werden mit PROJ-5 zur `companies`-Tabelle hinzugefügt; bis dahin Platzhalter-Fallback
 
+**Wetter-Vorschau (Auto-Befüllung via Open-Meteo API):**
+- Route `src/app/api/weather/route.ts` — kein API-Key, kein Drittanbieter-Account nötig
+- Ruft Open-Meteo (kostenlos, keine Registrierung) mit `lat`/`lon` + `date` auf
+- Liefert historische Temperatur + WMO-Wettercode → wird auf BTB-Karte vorausgefüllt (Felder `temp`, `wit`, `bod`)
+- Geocoding (Adresse → Koordinaten) via Nominatim (OpenStreetMap, ebenfalls kostenlos)
+- Standort kommt aus dem ersten Lagerplatz des Projekts (PROJ-10 `storage_locations.map_center_lat/lng`) oder aus der Projektadresse
+- Nur für Schichten in der Vergangenheit (nicht für zukünftige Daten)
+
 ---
 
 ## Kernprinzip: Die Karte ist das Dokument (WYSIWYG)

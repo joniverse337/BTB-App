@@ -26,7 +26,7 @@ export function EmptySlot({ date, typ, onCreateEmpty, onCopyPrevious, onCreateFr
     <div style={{
       width: '210mm', height: '297mm',
       background: isTag ? 'rgba(232,197,71,.07)' : 'rgba(74,124,247,.07)',
-      border: `2px dashed ${isTag ? 'rgba(232,197,71,.5)' : 'rgba(74,124,247,.5)'}`,
+      border: `2px solid ${isTag ? 'rgba(232,197,71,.5)' : 'rgba(74,124,247,.5)'}`,
       borderRadius: '6px',
       display: 'flex', flexDirection: 'column',
       alignItems: 'center', justifyContent: 'center',

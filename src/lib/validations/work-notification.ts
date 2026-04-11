@@ -20,4 +20,5 @@ export interface WorkNotificationRow {
   safety_plan_number: string | null
   track_work_enabled: boolean
   betra_number: string | null
+  contacts_json: string | null
 }

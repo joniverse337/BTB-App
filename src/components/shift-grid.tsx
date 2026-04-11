@@ -16,6 +16,7 @@ interface ShiftGridProps {
   zoom: number
   project: Project | null
   logo?: { url: string; x: number; y: number; size: number } | null
+  weatherLocation?: { lat: number; lon: number } | { address: string } | null
   workerCategories?: string[]
   equipmentCategories?: string[]
   onCreateShift: (datum: string, typ: 'tag' | 'nacht') => void
@@ -30,6 +31,7 @@ interface ShiftGridProps {
   onDeleteEquipment: (equipmentId: string) => void
   onPrintShift: (shift: ShiftWithDetails, date: Date) => void
   aaShiftKeys?: Set<string>
+  aaWorkDescriptions?: Map<string, string>
   onCreateFromAA?: (datum: string, typ: 'tag' | 'nacht') => void
 }
 
@@ -86,11 +88,11 @@ function Slot({
 }
 
 export function ShiftGrid({
-  days, shifts, zoom, project, logo, workerCategories, equipmentCategories,
+  days, shifts, zoom, project, logo, weatherLocation, workerCategories, equipmentCategories,
   onCreateShift, onCopyPreviousDay, onUpdateShift, onDeleteShift,
   onAddWorker, onUpdateWorker, onDeleteWorker,
   onAddEquipment, onUpdateEquipment, onDeleteEquipment,
-  onPrintShift, aaShiftKeys, onCreateFromAA,
+  onPrintShift, aaShiftKeys, aaWorkDescriptions, onCreateFromAA,
 }: ShiftGridProps) {
   const scale = zoom / 100
   const cardW = Math.round(CARD_W * scale)
@@ -126,10 +128,12 @@ export function ShiftGrid({
           >
             {shift ? (
               <ShiftCard shift={shift} date={day} project={project} logo={logo}
+                weatherLocation={weatherLocation}
                 workerCategories={workerCategories} equipmentCategories={equipmentCategories}
                 onUpdateShift={onUpdateShift} onAddWorker={onAddWorker} onUpdateWorker={onUpdateWorker}
                 onDeleteWorker={onDeleteWorker} onAddEquipment={onAddEquipment}
                 onUpdateEquipment={onUpdateEquipment} onDeleteEquipment={onDeleteEquipment}
+                aaWorkDescription={aaWorkDescriptions?.get(dateStr)}
               />
             ) : (
               <EmptySlot date={day} typ="tag"
@@ -152,10 +156,12 @@ export function ShiftGrid({
           >
             {shift ? (
               <ShiftCard shift={shift} date={day} project={project} logo={logo}
+                weatherLocation={weatherLocation}
                 workerCategories={workerCategories} equipmentCategories={equipmentCategories}
                 onUpdateShift={onUpdateShift} onAddWorker={onAddWorker} onUpdateWorker={onUpdateWorker}
                 onDeleteWorker={onDeleteWorker} onAddEquipment={onAddEquipment}
                 onUpdateEquipment={onUpdateEquipment} onDeleteEquipment={onDeleteEquipment}
+                aaWorkDescription={aaWorkDescriptions?.get(dateStr)}
               />
             ) : (
               <EmptySlot date={day} typ="nacht"

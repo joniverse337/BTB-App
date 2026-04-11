@@ -7,17 +7,19 @@ import { ProjectDetailHeader } from '@/components/project-detail-header'
 import { Skeleton } from '@/components/ui/skeleton'
 import { SettingsSection } from '@/components/settings-section'
 import { CategoryManager } from '@/components/category-manager'
+import { ContactManager } from '@/components/contact-manager'
+import { Checkbox } from '@/components/ui/checkbox'
 import { BtbPreviewCard } from '@/components/btb-preview-card'
 import { PaperEngine } from '@/components/paper-engine'
 import { WorkNotificationTable } from '@/components/work-notification-table'
 import { createClient } from '@/lib/supabase'
 import type { Project } from '@/lib/validations/project'
-import type { ProjectSettings, ProjectCategory } from '@/lib/validations/project-settings'
+import type { ProjectSettings, ProjectCategory, ProjectContact } from '@/lib/validations/project-settings'
 import { DEFAULT_PROJECT_SETTINGS } from '@/lib/validations/project-settings'
 import type { WorkNotificationRow } from '@/lib/validations/work-notification'
 import type { KWInfo } from '@/lib/kw-utils'
 import { toast } from 'sonner'
-import { PERSONAL_PRESETS, EQUIPMENT_PRESETS, WEEKDAY_NAMES } from '@/lib/constants'
+import { PERSONAL_PRESETS, WEEKDAY_NAMES } from '@/lib/constants'
 
 const DEMO_WEEK: KWInfo = {
   kw: 15,
@@ -40,7 +42,7 @@ const DEMO_ROWS: WorkNotificationRow[] = Array.from({ length: 7 }, (_, i) => ({
   location: null, bauspitzen: null, workers: null, machines: null,
   work_description: null, site_manager: null,
   safety_plan_enabled: false, safety_plan_number: null,
-  track_work_enabled: false, betra_number: null,
+  track_work_enabled: false, betra_number: null, contacts_json: null,
 }))
 
 // ZoomSlider-style logo size control
@@ -132,6 +134,8 @@ export default function ProjectSettingsPage() {
     ...DEFAULT_PROJECT_SETTINGS,
   })
   const [categories, setCategories] = useState<ProjectCategory[]>([])
+  const [contacts, setContacts] = useState<ProjectContact[]>([])
+  const [baustelleItems, setBaustelleItems] = useState<string[]>([])
   const [companyFallback, setCompanyFallback] = useState<{ firma: string | null; adr: string | null; logoUrl: string | null } | undefined>(undefined)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -208,6 +212,10 @@ export default function ProjectSettingsPage() {
             aa_logo_x: null,
             aa_logo_y: null,
             aa_logo_size: null,
+            equipment_bedarf_contacts: null,
+            equipment_baustelle_contacts: null,
+            equipment_frei_contacts: null,
+            print_lagerplaetze_with_geraete: false,
           }
           const { data: created } = await supabase
             .from('project_settings')
@@ -222,29 +230,42 @@ export default function ProjectSettingsPage() {
           }
         }
 
-        // Fetch categories
-        const { data: catData } = await supabase
-          .from('project_categories')
-          .select('*')
-          .eq('project_id', projectId)
-          .order('sort_order', { ascending: true })
+        // Fetch categories + Baustelle-Geräte + contacts parallel
+        const [{ data: catData }, { data: baustelleData }, { data: contactData }] = await Promise.all([
+          supabase
+            .from('project_categories')
+            .select('*')
+            .eq('project_id', projectId)
+            .order('sort_order', { ascending: true }),
+          supabase
+            .from('equipment_items')
+            .select('name')
+            .eq('project_id', projectId)
+            .eq('status', 'baustelle')
+            .order('sort_order', { ascending: true }),
+          supabase
+            .from('project_contacts')
+            .select('*')
+            .eq('project_id', projectId)
+            .order('sort_order', { ascending: true }),
+        ])
+
+        setContacts((contactData as ProjectContact[]) ?? [])
 
         const existingCats = (catData as ProjectCategory[]) ?? []
+        setBaustelleItems(
+          (baustelleData ?? [])
+            .map((e: { name: string | null }) => e.name)
+            .filter((n): n is string => !!n)
+        )
 
-        // Seed presets if categories don't exist yet for a type (guard against StrictMode double-invoke)
+        // Seed Personal-Presets wenn noch keine vorhanden (guard against StrictMode double-invoke)
         const needsPersonal = !existingCats.some((c) => c.typ === 'personal')
-        const needsEquipment = !existingCats.some((c) => c.typ === 'equipment')
 
-        if ((needsPersonal || needsEquipment) && !seededRef.current) {
+        if (needsPersonal && !seededRef.current) {
           seededRef.current = true
           const seedInserts: { project_id: string; typ: 'personal' | 'equipment'; label: string; sort_order: number }[] = []
-
-          if (needsPersonal) {
-            PERSONAL_PRESETS.forEach((label, i) => seedInserts.push({ project_id: projectId, typ: 'personal', label, sort_order: i + 1 }))
-          }
-          if (needsEquipment) {
-            EQUIPMENT_PRESETS.forEach((label, i) => seedInserts.push({ project_id: projectId, typ: 'equipment', label, sort_order: i + 1 }))
-          }
+          PERSONAL_PRESETS.forEach((label, i) => seedInserts.push({ project_id: projectId, typ: 'personal', label, sort_order: i + 1 }))
 
           const { data: seeded } = await supabase
             .from('project_categories')
@@ -252,8 +273,7 @@ export default function ProjectSettingsPage() {
             .select()
 
           const seededCats = (seeded as ProjectCategory[]) ?? []
-          const unseeded = existingCats.filter(c => !seedInserts.some(s => s.typ === c.typ))
-          setCategories([...unseeded, ...seededCats])
+          setCategories([...existingCats, ...seededCats])
         } else {
           setCategories(existingCats)
         }
@@ -268,7 +288,7 @@ export default function ProjectSettingsPage() {
   }, [projectId])
 
   // Save settings field on blur
-  const saveField = useCallback(async (field: keyof ProjectSettings, value: string | number | null) => {
+  const saveField = useCallback(async (field: keyof ProjectSettings, value: string | number | boolean | null) => {
     setSettings((prev) => ({ ...prev, [field]: value }))
 
     try {
@@ -352,6 +372,34 @@ export default function ProjectSettingsPage() {
     try {
       const supabase = createClient()
       await supabase.from('project_categories').delete().eq('id', id)
+    } catch {
+      toast.error('Speichern fehlgeschlagen.')
+    }
+  }, [])
+
+  // Contact add
+  const handleAddContact = useCallback(async (funktion: string | null, name: string, phone: string | null) => {
+    try {
+      const supabase = createClient()
+      const maxOrder = contacts.reduce((m, c) => Math.max(m, c.sort_order), -1)
+      const { data, error: insertError } = await supabase
+        .from('project_contacts')
+        .insert({ project_id: projectId, funktion: funktion || null, name, phone: phone || null, sort_order: maxOrder + 1 })
+        .select()
+        .single()
+      if (insertError || !data) return
+      setContacts((prev) => [...prev, data as ProjectContact])
+    } catch {
+      toast.error('Speichern fehlgeschlagen.')
+    }
+  }, [projectId, contacts])
+
+  // Contact delete
+  const handleDeleteContact = useCallback(async (id: string) => {
+    setContacts((prev) => prev.filter((c) => c.id !== id))
+    try {
+      const supabase = createClient()
+      await supabase.from('project_contacts').delete().eq('id', id)
     } catch {
       toast.error('Speichern fehlgeschlagen.')
     }
@@ -448,6 +496,7 @@ export default function ProjectSettingsPage() {
                   categories={categories}
                   onAdd={handleAddCategory}
                   onDelete={handleDeleteCategory}
+                  baustelleItems={baustelleItems}
                 />
               </div>
             </SettingsSection>
@@ -498,6 +547,35 @@ export default function ProjectSettingsPage() {
               )}
             </SettingsSection>
             </div>
+
+            {/* Ansprechpartner */}
+            <SettingsSection
+              title="Ansprechpartner"
+              description="Kontaktpersonen für dieses Projekt."
+            >
+              <ContactManager
+                contacts={contacts}
+                onAdd={handleAddContact}
+                onDelete={handleDeleteContact}
+              />
+            </SettingsSection>
+
+            {/* Gerätebedarf — Druckoptionen */}
+            <SettingsSection
+              title="Gerätebedarf"
+              description="Druckoptionen für den Gerätebedarf."
+            >
+              <label className="flex items-center gap-3 cursor-pointer select-none">
+                <Checkbox
+                  checked={settings.print_lagerplaetze_with_geraete ?? false}
+                  onCheckedChange={(checked) =>
+                    saveField('print_lagerplaetze_with_geraete', checked === true)
+                  }
+                />
+                <span className="text-sm">Lagerplätze bei Gerätebedarf mitdrucken</span>
+              </label>
+            </SettingsSection>
+
           </div>
 
           {/* Right column: Live preview (sticky) */}
@@ -557,6 +635,7 @@ export default function ProjectSettingsPage() {
                     disabledDays={new Set()}
                     activeDays={new Set()}
                     equipmentCategories={equipmentCategories}
+                    projectContacts={contacts}
                     onLogoPositionChange={handleAaLogoPositionChange}
                     onLogoPositionSave={handleAaLogoPositionSave}
                     onUpdateRow={() => {}}

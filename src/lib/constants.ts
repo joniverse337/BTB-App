@@ -14,6 +14,14 @@ export const RATE_LIMIT = {
   JOIN_MAX: 5,
   /** Window duration in ms (1 min) */
   JOIN_WINDOW_MS: 60 * 1000,
+  /** Max screenshot uploads per user within window */
+  SCREENSHOT_MAX: 20,
+  /** Window duration in ms (1 min) */
+  SCREENSHOT_WINDOW_MS: 60 * 1000,
+  /** Max mutation requests (create/update) per user within window */
+  MUTATION_MAX: 30,
+  /** Window duration in ms (1 min) */
+  MUTATION_WINDOW_MS: 60 * 1000,
 } as const
 
 // ── Category Presets ──────────────────────────────────

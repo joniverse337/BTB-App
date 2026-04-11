@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createAuthenticatedRoute, parseJsonBody } from '@/lib/api-utils'
+import { isMutationRateLimited } from '@/lib/rate-limit'
 import { z } from 'zod'
 
 const requestSchema = z.object({
@@ -13,6 +14,13 @@ const requestSchema = z.object({
 type CreateShiftsData = z.infer<typeof requestSchema>
 
 export const POST = createAuthenticatedRoute(async (request, { user, supabase, serviceClient }) => {
+  if (await isMutationRateLimited(user.id)) {
+    return NextResponse.json(
+      { error: 'Zu viele Anfragen. Bitte kurz warten.' },
+      { status: 429 }
+    )
+  }
+
   // 1. Validate input
   const parsed = await parseJsonBody<CreateShiftsData>(request, requestSchema)
   if (parsed instanceof NextResponse) return parsed
@@ -104,10 +112,14 @@ export const POST = createAuthenticatedRoute(async (request, { user, supabase, s
       const parsed = JSON.parse(raw)
       if (Array.isArray(parsed)) {
         return parsed
+          .slice(0, 50)
           .filter((e) => e.name && e.name.trim())
-          .map((e) => ({ typ: String(e.name).trim(), anz: Number(e.anz) || 1 }))
+          .map((e) => ({
+            typ: String(e.name).trim().substring(0, 500),
+            anz: Math.min(Math.max(Number(e.anz) || 1, 1), 9999),
+          }))
       }
-    } catch {}
+    } catch { /* kein gültiges JSON — Legacy-Plaintext als einzelner Eintrag */ }
     return [{ typ: raw.trim(), anz: 1 }]
   }
 

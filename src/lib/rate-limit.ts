@@ -16,7 +16,10 @@ const redis = hasRedis
     })
   : undefined
 
-// ── In-Memory-Fallback (für lokale Entwicklung) ──────
+// ── In-Memory-Fallback (nur für lokale Entwicklung ohne Redis-Credentials) ──
+// In Produktion (UPSTASH_REDIS_REST_URL gesetzt) wird dieser Pfad nie erreicht.
+// Wenn Redis in Produktion ausfällt, propagiert der Upstash-Client den Fehler
+// als unbehandelte Exception → 500 (fail-closed, kein Rate-Limit-Bypass).
 const memoryStore = new Map<string, { count: number; resetAt: number }>()
 
 function checkMemoryLimit(
@@ -60,6 +63,24 @@ const joinLimiter = redis
     })
   : null
 
+/** Screenshot-Upload: 20 Uploads pro Minute (per User) */
+const screenshotLimiter = redis
+  ? new Ratelimit({
+      redis,
+      limiter: Ratelimit.slidingWindow(RATE_LIMIT.SCREENSHOT_MAX, '1 m'),
+      prefix: 'rl:screenshot',
+    })
+  : null
+
+/** Mutations (create/update): 30 Requests pro Minute (per User) */
+const mutationLimiter = redis
+  ? new Ratelimit({
+      redis,
+      limiter: Ratelimit.slidingWindow(RATE_LIMIT.MUTATION_MAX, '1 m'),
+      prefix: 'rl:mutation',
+    })
+  : null
+
 // ── Exported functions ───────────────────────────────
 
 /**
@@ -88,4 +109,32 @@ export async function isJoinRateLimited(userId: string): Promise<boolean> {
   }
   // Fallback: In-Memory
   return !checkMemoryLimit(`join:${userId}`, RATE_LIMIT.JOIN_MAX, RATE_LIMIT.JOIN_WINDOW_MS).success
+}
+
+/**
+ * Rate-Limit-Check für Screenshot-Uploads.
+ * @param userId – Authenticated User ID
+ * @returns true wenn das Limit überschritten ist
+ */
+export async function isScreenshotRateLimited(userId: string): Promise<boolean> {
+  if (screenshotLimiter) {
+    const { success } = await screenshotLimiter.limit(userId)
+    return !success
+  }
+  // Fallback: In-Memory
+  return !checkMemoryLimit(`screenshot:${userId}`, RATE_LIMIT.SCREENSHOT_MAX, RATE_LIMIT.SCREENSHOT_WINDOW_MS).success
+}
+
+/**
+ * Rate-Limit-Check für Mutations (Company create/update, Schicht-Generierung).
+ * @param userId – Authenticated User ID
+ * @returns true wenn das Limit überschritten ist
+ */
+export async function isMutationRateLimited(userId: string): Promise<boolean> {
+  if (mutationLimiter) {
+    const { success } = await mutationLimiter.limit(userId)
+    return !success
+  }
+  // Fallback: In-Memory
+  return !checkMemoryLimit(`mutation:${userId}`, RATE_LIMIT.MUTATION_MAX, RATE_LIMIT.MUTATION_WINDOW_MS).success
 }

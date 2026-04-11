@@ -2,10 +2,19 @@
 
 import { useEffect, useRef, useCallback, useState } from 'react'
 import { createPortal } from 'react-dom'
+import { Plus, X } from 'lucide-react'
 import { ArbeitsZeitCell } from '@/components/aa-time-input'
+import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover'
 import type { KWInfo } from '@/lib/kw-utils'
 import type { Project } from '@/lib/validations/project'
 import type { WorkNotificationRow } from '@/lib/validations/work-notification'
+import type { ProjectContact } from '@/lib/validations/project-settings'
+
+interface ContactSnapshot { id: string; funktion: string | null; name: string; phone: string | null }
+function parseContacts(raw: string | null): ContactSnapshot[] {
+  if (!raw) return []
+  try { return JSON.parse(raw) } catch { return [] }
+}
 
 interface WorkNotificationTableProps {
   rows: WorkNotificationRow[]
@@ -18,6 +27,7 @@ interface WorkNotificationTableProps {
   disabledDays: Set<number>
   activeDays: Set<number>
   equipmentCategories?: string[]
+  projectContacts?: ProjectContact[]
   onUpdateRow: (weekdayNr: number, field: string, value: string | boolean | null) => void
   onBlurSave: (weekdayNr: number) => void
   onFieldBlur: (weekdayNr: number, field: string, value: string | null) => void
@@ -346,7 +356,7 @@ const COPY_BTN: React.CSSProperties = {
 }
 
 export function WorkNotificationTable({
-  rows, week, project, logo, companyInfo, disabledDays, activeDays, equipmentCategories,
+  rows, week, project, logo, companyInfo, disabledDays, activeDays, equipmentCategories, projectContacts,
   onUpdateRow, onBlurSave, onFieldBlur, onClearShift, onCheckboxChange, onAddDay, onRemoveDay, onSetShiftTimes,
   onLogoPositionChange, onLogoPositionSave,
 }: WorkNotificationTableProps) {
@@ -448,7 +458,7 @@ export function WorkNotificationTable({
             <th style={{ ...TH_STYLE, ...COL_STYLES.arbeiten }}>Arbeiten</th>
             <th style={{ ...TH_STYLE, ...COL_STYLES.sicherungsplan }}>SIPLA</th>
             <th style={{ ...TH_STYLE, ...COL_STYLES.gleisbereich, fontSize: '5.5pt', whiteSpace: 'normal' as const }}>Arbeiten im Gleisbereich</th>
-            <th style={{ ...TH_STYLE, ...COL_STYLES.bauleiter, borderRight: 'none' }}>Ansprechpartner</th>
+            <th style={{ ...TH_STYLE, ...COL_STYLES.bauleiter }}>Ansprechpartner</th>
           </tr>
         </thead>
         <tbody>
@@ -489,6 +499,7 @@ export function WorkNotificationTable({
                           onChange={v => onUpdateRow(row.weekday_nr, 'location', v || null)}
                           onBlur={() => onBlurSave(row.weekday_nr)}
                           ariaLabel={`Ort ${row.weekday_name}`}
+                          style={{ fontSize: '6pt' }}
                         />
                       </div>
                     </td>
@@ -522,6 +533,7 @@ export function WorkNotificationTable({
                           onChange={v => onUpdateRow(row.weekday_nr, 'work_description', v || null)}
                           onBlur={() => onBlurSave(row.weekday_nr)}
                           ariaLabel={`Arbeiten ${row.weekday_name}`}
+                          style={{ fontSize: '6pt' }}
                         />
                       </div>
                     </td>
@@ -561,14 +573,61 @@ export function WorkNotificationTable({
                         )}
                       </div>
                     </td>
-                    <td style={{ ...TD_STYLE, ...COL_STYLES.bauleiter, borderRight: 'none', height: '1px', padding: 0, position: 'relative', overflow: 'visible' }}>
-                      <div style={{ height: '100%', padding: '10px 4px', boxSizing: 'border-box', display: 'flex', flexDirection: 'column' }}>
-                        <AutoTextarea fillHeight value={row.site_manager ?? ''} placeholder="Name..."
-                          disabled={isDisabled}
-                          onChange={v => onUpdateRow(row.weekday_nr, 'site_manager', v || null)}
-                          onBlur={() => onBlurSave(row.weekday_nr)}
-                          ariaLabel={`Ansprechpartner ${row.weekday_name}`}
-                        />
+                    <td style={{ ...TD_STYLE, ...COL_STYLES.bauleiter, height: '1px', padding: 0, position: 'relative', overflow: 'visible' }}>
+                      <div style={{ height: '100%', padding: '4px', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '3px' }}>
+                        {parseContacts(row.contacts_json).map((c) => (
+                          <div key={c.id} style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '2px', fontSize: '6.5pt', lineHeight: 1.3 }}>
+                            <div style={{ flex: 1, wordBreak: 'break-word' }}>
+                              {c.funktion && <div style={{ color: '#888' }}>{c.funktion}</div>}
+                              <div>{c.name}</div>
+                              {c.phone && <div style={{ color: '#555' }}>{c.phone}</div>}
+                            </div>
+                            {!isDisabled && (
+                              <button
+                                data-no-print="true"
+                                onClick={() => {
+                                  const updated = parseContacts(row.contacts_json).filter(x => x.id !== c.id)
+                                  onUpdateRow(row.weekday_nr, 'contacts_json', updated.length ? JSON.stringify(updated) : null)
+                                  onBlurSave(row.weekday_nr)
+                                }}
+                                style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, color: '#e05555', flexShrink: 0, lineHeight: 1, marginTop: '1px' }}
+                              >
+                                <X size={9} />
+                              </button>
+                            )}
+                          </div>
+                        ))}
+                        {!isDisabled && projectContacts && projectContacts.filter(c => !parseContacts(row.contacts_json).some(s => s.id === c.id)).length > 0 && (
+                          <Popover>
+                            <PopoverTrigger asChild>
+                              <button
+                                data-no-print="true"
+                                style={{ display: 'flex', alignItems: 'center', gap: '2px', fontSize: '6.5pt', color: '#fff', background: '#1a2040', border: 'none', borderRadius: '3px', padding: '2px 6px', cursor: 'pointer', marginTop: '2px', width: 'fit-content' }}
+                              >
+                                <Plus size={8} /> Hinzufügen
+                              </button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-48 p-1" align="end" data-no-print="true">
+                              {projectContacts
+                                .filter(c => !parseContacts(row.contacts_json).some(s => s.id === c.id))
+                                .map(c => (
+                                  <button
+                                    key={c.id}
+                                    onClick={() => {
+                                      const snapshot: ContactSnapshot = { id: c.id, funktion: c.funktion, name: c.name, phone: c.phone }
+                                      const updated = [...parseContacts(row.contacts_json), snapshot]
+                                      onUpdateRow(row.weekday_nr, 'contacts_json', JSON.stringify(updated))
+                                      onBlurSave(row.weekday_nr)
+                                    }}
+                                    className="w-full text-left px-2 py-1.5 text-sm rounded hover:bg-accent"
+                                  >
+                                    <span className="font-medium">{c.name}</span>
+                                    {c.funktion && <span className="text-muted-foreground ml-1 text-xs">{c.funktion}</span>}
+                                  </button>
+                                ))}
+                            </PopoverContent>
+                          </Popover>
+                        )}
                       </div>
                       <button
                         data-no-print="true"

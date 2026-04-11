@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createAuthenticatedRoute, parseJsonBody } from '@/lib/api-utils'
 import { createCompanySchema, type CreateCompanyData } from '@/lib/validations/company'
+import { isMutationRateLimited } from '@/lib/rate-limit'
 
 function generateCompanyCode(): string {
   const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'
@@ -13,6 +14,13 @@ function generateCompanyCode(): string {
 }
 
 export const POST = createAuthenticatedRoute(async (request, { user, serviceClient }) => {
+  if (await isMutationRateLimited(user.id)) {
+    return NextResponse.json(
+      { error: 'Zu viele Anfragen. Bitte kurz warten.' },
+      { status: 429 }
+    )
+  }
+
   // 1. Parse and validate request body
   const parsed = await parseJsonBody<CreateCompanyData>(request, createCompanySchema)
   if (parsed instanceof NextResponse) return parsed

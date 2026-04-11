@@ -18,8 +18,9 @@ function buildCSP(nonce: string): string {
     // Styles: Nonce für Inline-Styles + Google Fonts
     `style-src-elem 'self' 'nonce-${nonce}' 'unsafe-inline' https://fonts.googleapis.com`,
     "style-src-attr 'unsafe-inline'",
-    `connect-src 'self' ${process.env.NEXT_PUBLIC_SUPABASE_URL} https://*.supabase.co`,
-    `img-src 'self' data: blob: https://*.supabase.co`,
+    `connect-src 'self' ${process.env.NEXT_PUBLIC_SUPABASE_URL} https://*.supabase.co https://*.mapbox.com`,
+    `img-src 'self' data: blob: https://*.supabase.co https://*.mapbox.com`,
+    "worker-src blob:",
     "font-src 'self' https://fonts.gstatic.com",
     "frame-ancestors 'none'",
     "form-action 'self'",

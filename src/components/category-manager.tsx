@@ -13,6 +13,7 @@ interface CategoryManagerProps {
   categories: ProjectCategory[]
   onAdd: (typ: 'personal' | 'equipment', label: string) => void
   onDelete: (id: string) => void
+  baustelleItems?: string[]
 }
 
 function CategoryList({
@@ -20,11 +21,13 @@ function CategoryList({
   categories,
   onAdd,
   onDelete,
+  autoItems = [],
 }: {
   typ: 'personal' | 'equipment'
   categories: ProjectCategory[]
   onAdd: (label: string) => void
   onDelete: (id: string) => void
+  autoItems?: string[]
 }) {
   const [newLabel, setNewLabel] = useState('')
 
@@ -38,10 +41,16 @@ function CategoryList({
       return true
     })
 
+  // Auto items deduplicated against manual categories
+  const manualLabelsLower = new Set(filtered.map((c) => c.label.toLowerCase()))
+  const uniqueAutoItems = autoItems.filter((name) => !manualLabelsLower.has(name.toLowerCase()))
+
   const handleAdd = () => {
     const trimmed = newLabel.trim()
     if (!trimmed) return
-    const isDuplicate = filtered.some((c) => c.label.toLowerCase() === trimmed.toLowerCase())
+    const isDuplicate =
+      filtered.some((c) => c.label.toLowerCase() === trimmed.toLowerCase()) ||
+      uniqueAutoItems.some((name) => name.toLowerCase() === trimmed.toLowerCase())
     if (isDuplicate) {
       toast.error('Diese Kategorie existiert bereits.')
       return
@@ -57,10 +66,30 @@ function CategoryList({
     }
   }
 
+  const hasAny = filtered.length > 0 || uniqueAutoItems.length > 0
+
   return (
     <div className="space-y-4">
-      {/* Flat list of all categories */}
-      {filtered.length > 0 ? (
+      {/* Auto items from Gerätebedarf (Auf der Baustelle) */}
+      {uniqueAutoItems.length > 0 && (
+        <div className="space-y-1.5">
+          <p className="text-[11px] text-muted-foreground">Automatisch via Gerätebedarf</p>
+          <div className="flex flex-wrap gap-1.5">
+            {uniqueAutoItems.map((name) => (
+              <Badge
+                key={name}
+                variant="outline"
+                className="gap-1 text-xs border-[#e8c547]/60 text-[#e8c547]"
+              >
+                {name}
+              </Badge>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Flat list of manual categories */}
+      {filtered.length > 0 && (
         <div className="flex flex-wrap gap-1.5">
           {filtered.map((cat) => (
             <Badge
@@ -80,7 +109,9 @@ function CategoryList({
             </Badge>
           ))}
         </div>
-      ) : (
+      )}
+
+      {!hasAny && (
         <p className="text-xs italic text-muted-foreground">Noch keine Kategorien. Füge welche hinzu.</p>
       )}
 
@@ -109,7 +140,7 @@ function CategoryList({
   )
 }
 
-export function CategoryManager({ categories, onAdd, onDelete }: CategoryManagerProps) {
+export function CategoryManager({ categories, onAdd, onDelete, baustelleItems }: CategoryManagerProps) {
   return (
     <div className="space-y-3">
       <label className="text-sm font-medium">Quick-Button Kategorien</label>
@@ -132,6 +163,7 @@ export function CategoryManager({ categories, onAdd, onDelete }: CategoryManager
             categories={categories}
             onAdd={(label) => onAdd('equipment', label)}
             onDelete={onDelete}
+            autoItems={baustelleItems}
           />
         </TabsContent>
       </Tabs>

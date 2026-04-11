@@ -252,6 +252,7 @@ interface ShiftCardProps {
   date: Date
   project: Project | null
   logo?: { url: string; x: number; y: number; size: number } | null
+  weatherLocation?: { lat: number; lon: number } | { address: string } | null
   workerCategories?: string[]
   equipmentCategories?: string[]
   onUpdateShift: (shiftId: string, field: string, value: string | number | null) => void
@@ -261,14 +262,59 @@ interface ShiftCardProps {
   onAddEquipment: (shiftId: string, typ: string) => void
   onUpdateEquipment: (equipmentId: string, field: string, value: string | number) => void
   onDeleteEquipment: (equipmentId: string) => void
+  aaWorkDescription?: string
 }
 
 export function ShiftCard({
-  shift, date, project, logo, workerCategories, equipmentCategories,
+  shift, date, project, logo, weatherLocation, workerCategories, equipmentCategories,
   onUpdateShift, onAddWorker, onUpdateWorker, onDeleteWorker,
   onAddEquipment, onUpdateEquipment, onDeleteEquipment,
+  aaWorkDescription,
 }: ShiftCardProps) {
   const [localValues, setLocalValues] = useState<Record<string, string>>({})
+  const [weatherLoading, setWeatherLoading] = useState(false)
+  // Persistent: true wenn beim Mount bereits temp+wit gesetzt (= wurden per "Laden" geladen),
+  // oder wenn der Nutzer in dieser Session auf "Laden" geklickt hat.
+  const [weatherLoaded, setWeatherLoaded] = useState(() => shift.temp != null && shift.wit != null)
+  const weatherFetchedRef = useRef(false)
+
+  const dateStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
+  const todayStr = new Date().toISOString().slice(0, 10)
+  const isFuture = dateStr > todayStr
+
+  const fetchWeather = async () => {
+    if (isFuture || weatherLoading || !weatherLocation) return
+    setWeatherLoading(true)
+    setWeatherLoaded(false)
+    try {
+      const params = new URLSearchParams({ date: dateStr })
+      if ('lat' in weatherLocation) {
+        params.set('lat', String(weatherLocation.lat))
+        params.set('lon', String(weatherLocation.lon))
+      } else {
+        params.set('address', weatherLocation.address)
+      }
+      const res = await fetch(`/api/weather?${params}`)
+      if (!res.ok) throw new Error('Fehler')
+      const data = await res.json()
+      onUpdateShift(shift.id, 'temp', data.temp)
+      onUpdateShift(shift.id, 'wit', data.witterung)
+      setWeatherLoaded(true)
+    } catch {
+      // Stille Fehlerbehandlung — Felder bleiben leer
+    } finally {
+      setWeatherLoading(false)
+    }
+  }
+
+  // Auto-Fetch beim ersten Rendern wenn Datum heute/Vergangenheit, Felder leer und Standort bekannt
+  useEffect(() => {
+    if (!weatherFetchedRef.current && !isFuture && weatherLocation && shift.temp == null && shift.wit == null) {
+      weatherFetchedRef.current = true
+      fetchWeather()
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [weatherLocation])
 
   const isNight = shift.typ === 'nacht'
   const dateLabel = isNight ? formatNightShiftDate(date) : formatCardDate(date)
@@ -405,8 +451,46 @@ export function ShiftCard({
           </div>
           <div style={sectionStyle}>
             <div style={sectionTitleStyle}>Wetter</div>
-            <div style={{ marginBottom: '4px' }}><label style={labelStyle}>Temperatur (C)</label>
-              <input type="number" value={get('temp', shift.temp)} onChange={e => handleChange('temp', e.target.value)} onBlur={() => handleNumberBlur('temp')} placeholder="12" style={inputStyle} /></div>
+            <div style={{ marginBottom: '4px' }}>
+              <label style={labelStyle}>Temperatur (C)</label>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                <input
+                  type="number"
+                  value={get('temp', shift.temp)}
+                  onChange={e => handleChange('temp', e.target.value)}
+                  onBlur={() => handleNumberBlur('temp')}
+                  placeholder="12"
+                  style={{ ...inputStyle, flex: 1, minWidth: 0 }}
+                />
+                <div style={{ flexShrink: 0, width: '14px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  {weatherLoading && (
+                    <svg width="12" height="12" viewBox="0 0 12 12" style={{ animation: 'spin 1s linear infinite' }}>
+                      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+                      <circle cx="6" cy="6" r="5" fill="none" stroke="#aaa" strokeWidth="1.5" strokeDasharray="20 12" />
+                    </svg>
+                  )}
+                  {!weatherLoading && weatherLoaded && (
+                    <svg width="12" height="12" viewBox="0 0 12 12">
+                      <path d="M2 6l3 3 5-5" stroke="#4caf50" strokeWidth="1.8" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                  )}
+                </div>
+                {!isFuture && weatherLocation && (
+                  <button
+                    onClick={fetchWeather}
+                    disabled={weatherLoading}
+                    style={{
+                      flexShrink: 0, padding: '1px 5px', border: '1px solid #ddd',
+                      borderRadius: '3px', background: '#f5f5f5', cursor: weatherLoading ? 'default' : 'pointer',
+                      fontSize: '8pt', fontFamily: "var(--font-ibm-plex-sans), sans-serif",
+                      color: '#555', whiteSpace: 'nowrap',
+                    }}
+                  >
+                    Laden
+                  </button>
+                )}
+              </div>
+            </div>
             <div style={{ marginBottom: '4px' }}><label style={labelStyle}>Witterung</label>
               <select value={shift.wit ?? ''} onChange={e => onUpdateShift(shift.id, 'wit', e.target.value || null)} style={{ ...inputStyle, cursor: 'pointer' }}>
                 <option value="">-- wählen --</option>
@@ -524,7 +608,24 @@ export function ShiftCard({
         {/* Ausgefuehrte Arbeiten */}
         <div style={{ ...sectionStyle, flexShrink: 0 }}>
           <div style={sectionTitleStyle}>Ausgeführte Arbeiten</div>
-          <PlainTextArea value={shift.arb || ''} onBlur={html => onUpdateShift(shift.id, 'arb', html)} placeholder="Beschreibung der durchgeführten Arbeiten..." minHeight="72px" />
+          <div style={{ position: 'relative' }}>
+            <PlainTextArea value={shift.arb || ''} onBlur={html => onUpdateShift(shift.id, 'arb', html)} placeholder="Beschreibung der durchgeführten Arbeiten..." minHeight="72px" />
+            {aaWorkDescription && (
+              <button
+                onClick={() => onUpdateShift(shift.id, 'arb', aaWorkDescription)}
+                style={{
+                  position: 'absolute', top: '4px', right: '4px',
+                  fontSize: '7pt', padding: '1px 6px',
+                  background: '#fff', color: '#3b82f6',
+                  border: '1px solid #3b82f6', borderRadius: '3px',
+                  cursor: 'pointer', fontWeight: 600,
+                  letterSpacing: 'normal', textTransform: 'none',
+                }}
+              >
+                Aus Arbeitsanmeldung
+              </button>
+            )}
+          </div>
         </div>
 
         <div style={{ height: '1.2em', flexShrink: 0 }} />

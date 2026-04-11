@@ -14,7 +14,10 @@ export function ProjectDetailHeader({ project, isLoading }: ProjectDetailHeaderP
   const pathname = usePathname()
   const searchParams = useSearchParams()
   const isOnAA = pathname?.includes('/arbeitsanmeldung')
+  const isOnGeraete = pathname?.includes('/geraete')
+  const isOnLagerplaetze = pathname?.includes('/lagerplaetze')
   const isOnSettings = pathname?.includes('/einstellungen')
+  const isOnBTB = !isOnAA && !isOnGeraete && !isOnLagerplaetze && !isOnSettings
   const kwSuffix = searchParams.get('kw') ? `?kw=${searchParams.get('kw')}` : ''
 
   return (
@@ -51,8 +54,8 @@ export function ProjectDetailHeader({ project, isLoading }: ProjectDetailHeaderP
                 style={{
                   display: 'flex', alignItems: 'center',
                   padding: '5px 12px', borderRadius: '6px', textDecoration: 'none',
-                  border: !isOnAA && !isOnSettings ? '1px solid #e8c547' : '1px solid transparent',
-                  color: !isOnAA && !isOnSettings ? '#e8c547' : '#8a90a8',
+                  border: isOnBTB ? '1px solid #e8c547' : '1px solid transparent',
+                  color: isOnBTB ? '#e8c547' : '#8a90a8',
                   fontSize: '13px', fontWeight: 500,
                 }}
               >
@@ -70,9 +73,33 @@ export function ProjectDetailHeader({ project, isLoading }: ProjectDetailHeaderP
               >
                 Arbeitsanmeldung
               </Link>
+              <Link
+                href={`/projekte/${project.id}/geraete`}
+                style={{
+                  display: 'flex', alignItems: 'center',
+                  padding: '5px 12px', borderRadius: '6px', textDecoration: 'none',
+                  border: isOnGeraete ? '1px solid #e8c547' : '1px solid transparent',
+                  color: isOnGeraete ? '#e8c547' : '#8a90a8',
+                  fontSize: '13px', fontWeight: 500,
+                }}
+              >
+                Gerätebedarf
+              </Link>
+              <Link
+                href={`/projekte/${project.id}/lagerplaetze`}
+                style={{
+                  display: 'flex', alignItems: 'center',
+                  padding: '5px 12px', borderRadius: '6px', textDecoration: 'none',
+                  border: isOnLagerplaetze ? '1px solid #e8c547' : '1px solid transparent',
+                  color: isOnLagerplaetze ? '#e8c547' : '#8a90a8',
+                  fontSize: '13px', fontWeight: 500,
+                }}
+              >
+                Lagerplätze
+              </Link>
             </div>
             <Link
-              href={`/projekte/${project.id}/einstellungen?from=${isOnAA ? 'arbeitsanmeldung' : 'btb'}${kwSuffix ? '&' + kwSuffix.slice(1) : ''}`}
+              href={`/projekte/${project.id}/einstellungen?from=${isOnAA ? 'arbeitsanmeldung' : isOnGeraete ? 'geraete' : isOnLagerplaetze ? 'lagerplaetze' : 'btb'}${kwSuffix ? '&' + kwSuffix.slice(1) : ''}`}
               style={{
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 width: '32px', height: '32px', borderRadius: '6px',

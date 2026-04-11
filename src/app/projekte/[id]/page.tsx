@@ -18,6 +18,7 @@ import { formatShiftDate } from '@/lib/kw-utils'
 import { toast } from 'sonner'
 
 import { ZOOM_STORAGE_KEY, ZOOM_DEFAULT, ZOOM_MIN, ZOOM_MAX } from '@/lib/constants'
+import { fetchStorageLocations } from '@/lib/services/storage-location-service'
 
 function getStoredZoom(): number {
   if (typeof window === 'undefined') return ZOOM_DEFAULT
@@ -31,7 +32,7 @@ function getStoredZoom(): number {
 
 function escHtml(str: string | null | undefined): string {
   if (!str) return ''
-  return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
+  return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#x27;')
 }
 
 const PRINT_STYLES = `
@@ -210,10 +211,26 @@ export default function ProjectDetailPage() {
 
   // AA shift keys for current KW: "YYYY-MM-DD:tag" | "YYYY-MM-DD:nacht"
   const [aaShiftKeys, setAaShiftKeys] = useState<Set<string>>(new Set())
+  // AA work descriptions for current KW: "YYYY-MM-DD" → work_description
+  const [aaWorkDescriptions, setAaWorkDescriptions] = useState<Map<string, string>>(new Map())
 
   // UI state
   const [zoom, setZoom] = useState(75)
   const [deleteTarget, setDeleteTarget] = useState<ShiftWithDetails | null>(null)
+
+  // Volltextsuche (PROJ-11)
+  const [searchQuery, setSearchQuery] = useState('')
+  const [searchBlink, setSearchBlink] = useState(0)
+
+  const matchSearch = useCallback((s: ShiftWithDetails) => {
+    const q = searchQuery.toLowerCase()
+    return (
+      (s.arb ?? '').toLowerCase().includes(q) ||
+      (s.vor ?? '').toLowerCase().includes(q)
+    )
+  }, [searchQuery])
+
+  const displayedShifts = searchQuery ? shifts.filter(matchSearch) : shifts
 
   // User categories (from PROJ-5, with fallback)
   const [workerCategories, setWorkerCategories] = useState<string[] | undefined>(undefined)
@@ -221,6 +238,9 @@ export default function ProjectDetailPage() {
 
   // Project logo (from PROJ-6 project_settings, fallback to company logo)
   const [projectLogo, setProjectLogo] = useState<{ url: string; x: number; y: number; size: number } | null>(null)
+
+  // Wetter-Standort aus erstem Lagerplatz (PROJ-10)
+  const [weatherLocation, setWeatherLocation] = useState<{ lat: number; lon: number } | { address: string } | null>(null)
 
   // Initialize zoom from localStorage
   useEffect(() => {
@@ -256,7 +276,23 @@ export default function ProjectDetailPage() {
         setIsLoadingProject(false)
       }
     }
+
+    async function fetchWeatherLocation() {
+      const locations = await fetchStorageLocations(projectId)
+      const first = locations[0]
+      if (!first) return
+      if (first.map_center_lat != null && first.map_center_lng != null) {
+        setWeatherLocation({ lat: first.map_center_lat, lon: first.map_center_lng })
+      } else {
+        const parts = [first.address_street, first.address_number, first.address_zip, first.address_city]
+          .filter(Boolean).join(' ')
+        const addr = parts || first.address || first.name
+        if (addr) setWeatherLocation({ address: addr })
+      }
+    }
+
     fetchProject()
+    fetchWeatherLocation()
   }, [projectId])
 
   // Compute weeks when project loads
@@ -350,20 +386,32 @@ export default function ProjectDetailPage() {
           }
         }
 
-        // Fetch project_categories first (PROJ-6), fallback to user_categories (PROJ-5)
-        const { data: projCats } = await supabase
-          .from('project_categories')
-          .select('*')
-          .eq('project_id', projectId)
-          .order('sort_order', { ascending: true })
+        // Fetch project_categories (PROJ-6) + Baustelle-Geräte (PROJ-9) parallel
+        const [{ data: projCats }, { data: baustelleItems }] = await Promise.all([
+          supabase
+            .from('project_categories')
+            .select('*')
+            .eq('project_id', projectId)
+            .order('sort_order', { ascending: true }),
+          supabase
+            .from('equipment_items')
+            .select('name')
+            .eq('project_id', projectId)
+            .eq('status', 'baustelle')
+            .order('sort_order', { ascending: true }),
+        ])
+
+        const baustelleNames = (baustelleItems ?? [])
+          .map((e: { name: string | null }) => e.name)
+          .filter((n): n is string => !!n)
 
         if (projCats && projCats.length > 0) {
           const personal = projCats.filter((c: { typ: string }) => c.typ === 'personal').map((c: { label: string }) => c.label)
           const equip = projCats.filter((c: { typ: string }) => c.typ === 'equipment').map((c: { label: string }) => c.label)
+          const mergedEquip = [...new Set([...equip, ...baustelleNames])]
 
-          // Project categories are the single source of truth (presets are seeded in DB via PROJ-6 settings)
           setWorkerCategories(personal.length > 0 ? personal : undefined)
-          setEquipmentCategories(equip.length > 0 ? equip : undefined)
+          setEquipmentCategories(mergedEquip.length > 0 ? mergedEquip : undefined)
           return
         }
 
@@ -375,15 +423,16 @@ export default function ProjectDetailPage() {
 
         if (error || !data || data.length === 0) {
           setWorkerCategories(undefined)
-          setEquipmentCategories(undefined)
+          setEquipmentCategories(baustelleNames.length > 0 ? baustelleNames : undefined)
           return
         }
 
         const personal = data.filter((c: { typ: string; label: string }) => c.typ === 'personal').map((c: { label: string }) => c.label)
         const equip = data.filter((c: { typ: string; label: string }) => c.typ === 'equipment').map((c: { label: string }) => c.label)
+        const mergedEquip = [...new Set([...equip, ...baustelleNames])]
 
         setWorkerCategories(personal.length > 0 ? personal : undefined)
-        setEquipmentCategories(equip.length > 0 ? equip : undefined)
+        setEquipmentCategories(mergedEquip.length > 0 ? mergedEquip : undefined)
       } catch {
         setWorkerCategories(undefined)
         setEquipmentCategories(undefined)
@@ -445,25 +494,28 @@ export default function ProjectDetailPage() {
 
   useEffect(() => {
     const activeWeek = weeks[activeKWIndex]
-    if (!project || !activeWeek) { setAaShiftKeys(new Set()); return }
+    if (!project || !activeWeek) { setAaShiftKeys(new Set()); setAaWorkDescriptions(new Map()); return }
 
     let cancelled = false
     const supabase = createClient()
 
     supabase
       .from('work_notifications')
-      .select('date, day_start, night_start')
+      .select('date, day_start, night_start, work_description')
       .eq('project_id', projectId)
       .eq('year', activeWeek.year)
       .eq('calendar_week', activeWeek.kw)
       .then(({ data, error }) => {
         if (cancelled || error) return
         const keys = new Set<string>()
+        const descs = new Map<string, string>()
         for (const row of data ?? []) {
           if (row.day_start) keys.add(`${row.date}:tag`)
           if (row.night_start) keys.add(`${row.date}:nacht`)
+          if (row.work_description) descs.set(row.date, row.work_description)
         }
         setAaShiftKeys(keys)
+        setAaWorkDescriptions(descs)
       })
 
     return () => { cancelled = true }
@@ -472,6 +524,10 @@ export default function ProjectDetailPage() {
   // --- Shift CRUD ---
 
   const handleCreateShift = async (datum: string, typ: 'tag' | 'nacht') => {
+    if (searchQuery) {
+      setSearchBlink(n => n + 1)
+      return
+    }
     try {
       const supabase = createClient()
       const { data, error } = await supabase
@@ -982,12 +1038,17 @@ ${pages}
             const kw = weeks[idx]?.kw
             if (kw) router.replace(`/projekte/${projectId}?kw=${kw}`, { scroll: false })
           }}
-          shifts={shifts}
+          shifts={displayedShifts}
           zoom={zoom}
           onZoomChange={handleZoomChange}
           onPrintKW={handlePrintKW}
           lzVon={project.lz_von}
           lzBis={project.lz_bis}
+          searchQuery={searchQuery}
+          onSearch={(q) => setSearchQuery(q)}
+          onClearSearch={() => setSearchQuery('')}
+          searchResultCount={searchQuery ? displayedShifts.length : undefined}
+          searchBlinkTrigger={searchBlink}
         />
 
         <div style={{ flex: 1, overflow: 'auto', padding: '20px' }}>
@@ -1000,10 +1061,11 @@ ${pages}
           ) : (
             <ShiftGrid
               days={activeDays}
-              shifts={shifts}
+              shifts={displayedShifts}
               zoom={zoom}
               project={project}
               logo={projectLogo}
+              weatherLocation={weatherLocation}
               workerCategories={workerCategories}
               equipmentCategories={equipmentCategories}
               onCreateShift={handleCreateShift}
@@ -1018,6 +1080,7 @@ ${pages}
               onDeleteEquipment={handleDeleteEquipment}
               onPrintShift={handlePrintShift}
               aaShiftKeys={aaShiftKeys}
+              aaWorkDescriptions={aaWorkDescriptions}
               onCreateFromAA={handleCreateFromAA}
             />
           )}

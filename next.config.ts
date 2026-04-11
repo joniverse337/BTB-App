@@ -1,5 +1,9 @@
 import type { NextConfig } from "next";
 
+// NEXT_PUBLIC_APP_URL muss für jedes Deployment gesetzt sein (z.B. https://btb-app.vercel.app)
+// Lokal: http://localhost:3000 (in .env.local setzen)
+const allowedOrigin = process.env.NEXT_PUBLIC_APP_URL ?? 'https://btb-app.vercel.app'
+
 const nextConfig: NextConfig = {
   poweredByHeader: false,
   async headers() {
@@ -8,7 +12,7 @@ const nextConfig: NextConfig = {
         // Statische Assets: CORS auf eigene Domain beschränken
         source: '/_next/static/(.*)',
         headers: [
-          { key: 'Access-Control-Allow-Origin', value: 'https://btb-app.vercel.app' },
+          { key: 'Access-Control-Allow-Origin', value: allowedOrigin },
         ],
       },
       {
@@ -26,7 +30,7 @@ const nextConfig: NextConfig = {
           { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
           { key: 'Permissions-Policy', value: 'camera=(), microphone=(), geolocation=()' },
           // CORS explizit einschränken (überschreibt Vercels CDN-Default Access-Control-Allow-Origin: *)
-          { key: 'Access-Control-Allow-Origin', value: 'https://btb-app.vercel.app' },
+          { key: 'Access-Control-Allow-Origin', value: allowedOrigin },
           {
             key: 'Strict-Transport-Security',
             value: 'max-age=63072000; includeSubDomains; preload',

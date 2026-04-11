@@ -26,7 +26,7 @@ import type { Project } from '@/lib/validations/project'
 import { toast } from 'sonner'
 
 import type { WorkNotificationRow } from '@/lib/validations/work-notification'
-export type { WorkNotificationRow } from '@/lib/validations/work-notification'
+import type { ProjectContact } from '@/lib/validations/project-settings'
 
 const WEEKDAY_NAMES = ['Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag', 'Samstag', 'Sonntag']
 
@@ -55,6 +55,7 @@ function buildEmptyRows(projectId: string, week: KWInfo): WorkNotificationRow[] 
       safety_plan_number: null,
       track_work_enabled: false,
       betra_number: null,
+      contacts_json: null,
     }
   })
 }
@@ -96,6 +97,7 @@ export default function ArbeitsanmeldungPage() {
   const [aaLogo, setAaLogo] = useState<{ url: string; x: number; y: number; size: number } | null>(null)
   const [companyInfo, setCompanyInfo] = useState<{ name: string | null; adr: string | null }>({ name: null, adr: null })
   const [equipmentCategories, setEquipmentCategories] = useState<string[]>([])
+  const [projectContacts, setProjectContacts] = useState<ProjectContact[]>([])
 
   // Fetch project
   useEffect(() => {
@@ -195,6 +197,14 @@ export default function ArbeitsanmeldungPage() {
         if (catData && catData.length > 0) {
           setEquipmentCategories(catData.map((c: { label: string }) => c.label))
         }
+
+        // Fetch project contacts
+        const { data: contactData } = await supabase
+          .from('project_contacts')
+          .select('*')
+          .eq('project_id', projectId)
+          .order('sort_order', { ascending: true })
+        if (contactData) setProjectContacts(contactData as ProjectContact[])
 
         // Logo fallback chain for AA
         if (settingsData?.logo_url) {
@@ -704,6 +714,7 @@ export default function ArbeitsanmeldungPage() {
                 disabledDays={disabledDays}
                 activeDays={activeDays}
                 equipmentCategories={equipmentCategories}
+                projectContacts={projectContacts}
                 onUpdateRow={handleUpdateRow}
                 onBlurSave={handleBlurSave}
                 onFieldBlur={handleFieldBlur}

@@ -43,34 +43,12 @@ function NewLocationCard({ onCreate }: { onCreate: () => void }) {
     <button
       onClick={onCreate}
       data-no-print="true"
-      style={{
-        flexShrink: 0,
-        width: '210mm',
-        height: 'calc(297mm + 40px)',
-        border: '2px dashed rgba(232,197,71,0.45)',
-        background: 'rgba(232,197,71,0.04)',
-        borderRadius: '6px',
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        justifyContent: 'center',
-        gap: '12px',
-        cursor: 'pointer',
-        color: 'rgba(232,197,71,0.7)',
-        transition: 'background 0.15s, border-color 0.15s',
-      }}
-      onMouseEnter={(e) => {
-        e.currentTarget.style.background = 'rgba(232,197,71,0.09)'
-        e.currentTarget.style.borderColor = 'rgba(232,197,71,0.7)'
-      }}
-      onMouseLeave={(e) => {
-        e.currentTarget.style.background = 'rgba(232,197,71,0.04)'
-        e.currentTarget.style.borderColor = 'rgba(232,197,71,0.45)'
-      }}
+      className="group flex flex-col items-center justify-center gap-3 rounded-[12px] border-2 border-dashed border-[rgba(232,197,71,0.45)] bg-[rgba(232,197,71,0.04)] text-[rgba(232,197,71,0.7)] transition-colors duration-150 hover:border-[rgba(232,197,71,0.7)] hover:bg-[rgba(232,197,71,0.09)] hover:text-[#e8c547] cursor-pointer"
+      style={{ flexShrink: 0, width: '210mm', height: 'calc(297mm + 40px)' }}
       aria-label="Neuen Lagerplatz anlegen"
     >
       <Plus size={28} strokeWidth={1.5} />
-      <span style={{ fontSize: '13px', fontWeight: 600, letterSpacing: '0.01em' }}>
+      <span className="text-[13px] font-semibold tracking-[0.01em]">
         Neuen Lagerplatz anlegen
       </span>
     </button>

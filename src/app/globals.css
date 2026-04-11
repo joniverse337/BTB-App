@@ -64,6 +64,24 @@
   100% { width: 0%; left: 100%; }
 }
 
+/* Browser autofill — verhindert weißen/gelben Autofill-Hintergrund im dunklen Theme */
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:active {
+  -webkit-box-shadow: 0 0 0 1000px hsl(var(--background)) inset !important;
+  -webkit-text-fill-color: hsl(var(--foreground)) !important;
+  caret-color: hsl(var(--foreground));
+}
+/* Fokussierter autofill-Input: Hintergrund + gelber Ring kombiniert */
+input:-webkit-autofill:focus {
+  -webkit-box-shadow:
+    0 0 0 1000px hsl(var(--background)) inset,
+    0 0 0 2px hsl(var(--background)),
+    0 0 0 4px hsl(var(--ring)) !important;
+  -webkit-text-fill-color: hsl(var(--foreground)) !important;
+  caret-color: hsl(var(--foreground));
+}
+
 /* Hide number input spinners for btb card inputs */
 .btb-no-spin::-webkit-inner-spin-button,
 .btb-no-spin::-webkit-outer-spin-button {

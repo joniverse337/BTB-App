@@ -458,7 +458,7 @@ export const LagerplatzCard = forwardRef<LagerplatzCardRef, LagerplatzCardProps>
         style={{ flexShrink: 0 }}
         onFocus={onActivate}
         onClick={onActivate}
-        className={`rounded-[6px] transition-shadow duration-150 ${isActive ? 'ring-8 ring-[#e8c547]' : 'lagerplatz-card-hover'}`}
+        className={`rounded-[12px] transition-shadow duration-150 ${isActive ? 'ring-8 ring-[#e8c547]' : 'lagerplatz-card-hover'}`}
       >
         <PaperEngine
           orientation="portrait"

@@ -1,5 +1,7 @@
 'use client'
 
+import { Sun, Moon } from 'lucide-react'
+
 interface EmptySlotProps {
   date: Date
   typ: 'tag' | 'nacht'
@@ -27,12 +29,14 @@ export function EmptySlot({ date, typ, onCreateEmpty, onCopyPrevious, onCreateFr
       width: '210mm', height: '297mm',
       background: isTag ? 'rgba(232,197,71,.07)' : 'rgba(74,124,247,.07)',
       border: `2px solid ${isTag ? 'rgba(232,197,71,.5)' : 'rgba(74,124,247,.5)'}`,
-      borderRadius: '6px',
+      borderRadius: '12px',
       display: 'flex', flexDirection: 'column',
       alignItems: 'center', justifyContent: 'center',
       gap: '12px', padding: '30px', textAlign: 'center', color: '#7a85a8',
     }}>
-      <div style={{ fontSize: '48px', opacity: 0.5 }}>{isTag ? '\u2600\uFE0F' : '\uD83C\uDF19'}</div>
+      <div style={{ opacity: 0.5, color: isTag ? '#e8c547' : '#4a7cf7' }}>
+        {isTag ? <Sun size={48} strokeWidth={1.5} /> : <Moon size={48} strokeWidth={1.5} />}
+      </div>
       <div style={{ fontFamily: "var(--font-inter), sans-serif", fontWeight: 700, fontSize: '26pt', color: '#dde2f0', opacity: 0.7 }}>{wt}</div>
       <div style={{ fontSize: '18pt', color: '#7a85a8', marginTop: '-4px' }}>{dateStr}</div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', width: '100%', maxWidth: '320px', marginTop: '8px' }}>

@@ -81,7 +81,7 @@ export function PaperEngine({
             background: '#fff',
             position: 'relative',
             boxShadow: '0 4px 24px rgba(0,0,0,0.45)',
-            borderRadius: '4px',
+            borderRadius: '12px',
             overflow: 'hidden',
             fontFamily: 'var(--font-ibm-plex-sans), sans-serif',
           }}
@@ -101,7 +101,7 @@ export function PaperEngine({
               zIndex: 30,
               display: 'flex',
               gap: '6px',
-              opacity: 0,
+              opacity: 0.35,
               transition: 'opacity 0.15s',
             }}
           >

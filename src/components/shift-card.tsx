@@ -394,7 +394,7 @@ export function ShiftCard({
       width: '210mm', height: '297mm',
       background: '#fff', color: '#222',
       fontFamily: "var(--font-ibm-plex-sans), sans-serif", fontSize: '9pt',
-      borderRadius: '6px', overflow: 'hidden', position: 'relative',
+      borderRadius: '12px', overflow: 'hidden', position: 'relative',
       boxShadow: '0 4px 20px rgba(0,0,0,.4)',
       border: isNight ? '2px solid rgba(74,124,247,.2)' : '2px solid transparent',
     }}>

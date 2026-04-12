@@ -15,6 +15,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { createClient } from '@/lib/supabase'
 import { FormAlert } from '@/components/form-alert'
+import { useQueryClient } from '@tanstack/react-query'
 
 interface DeleteAccountDialogProps {
   open: boolean
@@ -23,6 +24,7 @@ interface DeleteAccountDialogProps {
 
 export function DeleteAccountDialog({ open, onOpenChange }: DeleteAccountDialogProps) {
   const router = useRouter()
+  const queryClient = useQueryClient()
   const [userEmail, setUserEmail] = useState<string>('')
   const [emailInput, setEmailInput] = useState('')
   const [isDeleting, setIsDeleting] = useState(false)
@@ -56,9 +58,10 @@ export function DeleteAccountDialog({ open, onOpenChange }: DeleteAccountDialogP
         return
       }
 
-      // Clear local session before redirecting
+      // Clear local session and cache before redirecting
       const supabase = createClient()
       await supabase.auth.signOut()
+      queryClient.clear()
       router.push('/login?deleted=true')
     } catch {
       setErrorMessage('Ein unerwarteter Fehler ist aufgetreten.')

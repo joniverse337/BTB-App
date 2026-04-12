@@ -1,7 +1,8 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
+import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { useQueryClient } from '@tanstack/react-query'
 import Image from 'next/image'
 import { Plus, LogOut, Settings, AlertCircle, RefreshCw } from 'lucide-react'
 import { toast } from 'sonner'
@@ -20,12 +21,14 @@ import { ProjectCard } from '@/components/project-card'
 import { ProjectFormDialog } from '@/components/project-form-dialog'
 import { ProjectsEmptyState } from '@/components/projects-empty-state'
 import { createClient } from '@/lib/supabase'
+import { useProjectsQuery } from '@/hooks/queries/use-projects-query'
+import { queryKeys } from '@/lib/query-keys'
 import type { Project, ProjectFormData } from '@/lib/validations/project'
 
 export default function ProjektePage() {
   const router = useRouter()
-  const [projects, setProjects] = useState<Project[]>([])
-  const [isLoading, setIsLoading] = useState(true)
+  const queryClient = useQueryClient()
+  const { data: projects = [], isLoading } = useProjectsQuery()
 
   // Dialog state
   const [dialogOpen, setDialogOpen] = useState(false)
@@ -38,40 +41,6 @@ export default function ProjektePage() {
     count: number
     pendingData: ProjectFormData
   } | null>(null)
-
-  const fetchProjects = useCallback(async () => {
-    setIsLoading(true)
-
-    try {
-      const supabase = createClient()
-      const { data, error: fetchError } = await supabase
-        .from('projects')
-        .select('*, shifts(count)')
-        .order('created_at', { ascending: false })
-
-      if (fetchError) {
-        setProjects([])
-        return
-      }
-
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const projectsWithCounts: Project[] = (data ?? []).map((p: any) => ({
-        ...p,
-        btb_count: p.shifts?.[0]?.count ?? 0,
-        shifts: undefined,
-      }))
-
-      setProjects(projectsWithCounts)
-    } catch {
-      setProjects([])
-    } finally {
-      setIsLoading(false)
-    }
-  }, [])
-
-  useEffect(() => {
-    fetchProjects()
-  }, [fetchProjects])
 
   function handleCreateClick() {
     setEditingProject(null)
@@ -99,7 +68,7 @@ export default function ProjektePage() {
 
       if (deleteError) throw deleteError
 
-      setProjects((prev) => prev.filter((p) => p.id !== project.id))
+      await queryClient.invalidateQueries({ queryKey: queryKeys.projects() })
       setSaveError(null)
     } catch (err) {
       void err
@@ -166,7 +135,7 @@ export default function ProjektePage() {
 
       setDialogOpen(false)
       setEditingProject(null)
-      await fetchProjects()
+      await queryClient.invalidateQueries({ queryKey: queryKeys.projects() })
     } catch (err) {
       void err
       setSaveError('Projekt konnte nicht gespeichert werden. Bitte versuche es erneut.')
@@ -190,7 +159,7 @@ export default function ProjektePage() {
       setShiftWarning(null)
       setDialogOpen(false)
       setEditingProject(null)
-      await fetchProjects()
+      await queryClient.invalidateQueries({ queryKey: queryKeys.projects() })
       toast.info('Projekt gespeichert. Schichten außerhalb des Zeitraums sind ausgeblendet.')
     } catch (err) {
       void err
@@ -230,7 +199,7 @@ export default function ProjektePage() {
       setShiftWarning(null)
       setDialogOpen(false)
       setEditingProject(null)
-      await fetchProjects()
+      await queryClient.invalidateQueries({ queryKey: queryKeys.projects() })
       toast.success('Projekt gespeichert. Schichten außerhalb des Zeitraums wurden gelöscht.')
     } catch (err) {
       void err
@@ -243,6 +212,7 @@ export default function ProjektePage() {
   async function handleLogout() {
     const supabase = createClient()
     await supabase.auth.signOut()
+    queryClient.clear()   // Sicherheit: Cache nach Logout leeren
     router.push('/login')
     router.refresh()
   }

@@ -1,7 +1,8 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useParams, useRouter, useSearchParams } from 'next/navigation'
+import { useQueryClient } from '@tanstack/react-query'
 import { AlertCircle } from 'lucide-react'
 import { Skeleton } from '@/components/ui/skeleton'
 import { ProjectDetailHeader } from '@/components/project-detail-header'
@@ -18,7 +19,13 @@ import { formatShiftDate } from '@/lib/kw-utils'
 import { toast } from 'sonner'
 
 import { ZOOM_STORAGE_KEY, ZOOM_DEFAULT, ZOOM_MIN, ZOOM_MAX } from '@/lib/constants'
-import { fetchStorageLocations } from '@/lib/services/storage-location-service'
+import { useProjectQuery } from '@/hooks/queries/use-project-query'
+import { useProjectSettingsQuery } from '@/hooks/queries/use-project-settings-query'
+import { useShiftsQuery } from '@/hooks/queries/use-shifts-query'
+import { useStorageLocationsQuery } from '@/hooks/queries/use-storage-locations-query'
+import { useEquipmentQuery } from '@/hooks/queries/use-equipment-query'
+import { useWorkNotificationsQuery } from '@/hooks/queries/use-work-notifications-query'
+import { queryKeys } from '@/lib/query-keys'
 
 function getStoredZoom(): number {
   if (typeof window === 'undefined') return ZOOM_DEFAULT
@@ -196,23 +203,55 @@ export default function ProjectDetailPage() {
   const projectId = params.id as string
   const router = useRouter()
   const searchParams = useSearchParams()
+  const queryClient = useQueryClient()
 
-  // Project state
-  const [project, setProject] = useState<Project | null>(null)
-  const [isLoadingProject, setIsLoadingProject] = useState(true)
+  // ── Remote Data ───────────────────────────────────────────────
+  const { data: projectBase, isLoading: isLoadingProject } = useProjectQuery(projectId)
+  const { data: settings } = useProjectSettingsQuery(projectId)
+  const { data: allShifts = [], isLoading: isLoadingShifts } = useShiftsQuery(projectId)
+  const { data: storageLocations = [] } = useStorageLocationsQuery(projectId)
+  const { data: equipmentItems = [] } = useEquipmentQuery(projectId)
 
-  // KW state
+  // Projekt mit Settings-Overrides (firma/adr aus project_settings haben Vorrang)
+  const project = useMemo((): Project | null => {
+    if (!projectBase) return null
+    return {
+      ...projectBase,
+      firm: settings?.firma ?? projectBase.firm,
+      adr: settings?.adr ?? projectBase.adr,
+    }
+  }, [projectBase, settings])
+
+  const projectLogo = settings?.logo ?? null
+
+  // Wetter-Standort aus erstem Lagerplatz (PROJ-10)
+  const weatherLocation = useMemo(() => {
+    const first = storageLocations[0]
+    if (!first) return null
+    if (first.map_center_lat != null && first.map_center_lng != null) {
+      return { lat: first.map_center_lat, lon: first.map_center_lng }
+    }
+    const parts = [first.address_street, first.address_number, first.address_zip, first.address_city]
+      .filter(Boolean).join(' ')
+    const addr = parts || first.address || first.name
+    return addr ? { address: addr } : null
+  }, [storageLocations])
+
+  // Kategorien: aus Settings + baustelle-Geräten zusammengeführt (PROJ-9)
+  const baustelleNames = useMemo(
+    () => equipmentItems.filter(e => e.status === 'baustelle').map(e => e.name).filter((n): n is string => !!n),
+    [equipmentItems]
+  )
+  const workerCategories = settings?.workerCategories
+  const equipmentCategories = useMemo(() => {
+    const cats = settings?.equipmentCategories ?? []
+    const merged = [...new Set([...cats, ...baustelleNames])]
+    return merged.length > 0 ? merged : (baustelleNames.length > 0 ? baustelleNames : undefined)
+  }, [settings?.equipmentCategories, baustelleNames])
+
+  // ── UI State ──────────────────────────────────────────────────
   const [weeks, setWeeks] = useState<KWInfo[]>([])
   const [activeKWIndex, setActiveKWIndex] = useState(0)
-
-  // Shifts state
-  const [shifts, setShifts] = useState<ShiftWithDetails[]>([])
-  const [isLoadingShifts, setIsLoadingShifts] = useState(false)
-
-  // AA shift keys for current KW: "YYYY-MM-DD:tag" | "YYYY-MM-DD:nacht"
-  const [aaShiftKeys, setAaShiftKeys] = useState<Set<string>>(new Set())
-  // AA work descriptions for current KW: "YYYY-MM-DD" → work_description
-  const [aaWorkDescriptions, setAaWorkDescriptions] = useState<Map<string, string>>(new Map())
 
   // UI state
   const [zoom, setZoom] = useState(75)
@@ -222,25 +261,35 @@ export default function ProjectDetailPage() {
   const [searchQuery, setSearchQuery] = useState('')
   const [searchBlink, setSearchBlink] = useState(0)
 
-  const matchSearch = useCallback((s: ShiftWithDetails) => {
+  const displayedShifts = useMemo(() => {
+    if (!searchQuery) return allShifts
     const q = searchQuery.toLowerCase()
-    return (
+    return allShifts.filter(s =>
       (s.arb ?? '').toLowerCase().includes(q) ||
       (s.vor ?? '').toLowerCase().includes(q)
     )
-  }, [searchQuery])
+  }, [allShifts, searchQuery])
 
-  const displayedShifts = searchQuery ? shifts.filter(matchSearch) : shifts
+  // ── AA-Daten für aktive KW ────────────────────────────────────
+  const activeWeek = weeks[activeKWIndex]
+  const { data: aaRows = [] } = useWorkNotificationsQuery(projectId, activeWeek?.year, activeWeek?.kw)
 
-  // User categories (from PROJ-5, with fallback)
-  const [workerCategories, setWorkerCategories] = useState<string[] | undefined>(undefined)
-  const [equipmentCategories, setEquipmentCategories] = useState<string[] | undefined>(undefined)
+  const aaShiftKeys = useMemo(() => {
+    const keys = new Set<string>()
+    for (const row of aaRows) {
+      if (row.day_start) keys.add(`${row.date}:tag`)
+      if (row.night_start) keys.add(`${row.date}:nacht`)
+    }
+    return keys
+  }, [aaRows])
 
-  // Project logo (from PROJ-6 project_settings, fallback to company logo)
-  const [projectLogo, setProjectLogo] = useState<{ url: string; x: number; y: number; size: number } | null>(null)
-
-  // Wetter-Standort aus erstem Lagerplatz (PROJ-10)
-  const [weatherLocation, setWeatherLocation] = useState<{ lat: number; lon: number } | { address: string } | null>(null)
+  const aaWorkDescriptions = useMemo(() => {
+    const descs = new Map<string, string>()
+    for (const row of aaRows) {
+      if (row.work_description) descs.set(row.date, row.work_description)
+    }
+    return descs
+  }, [aaRows])
 
   // Initialize zoom from localStorage
   useEffect(() => {
@@ -251,49 +300,6 @@ export default function ProjectDetailPage() {
     setZoom(newZoom)
     localStorage.setItem(ZOOM_STORAGE_KEY, newZoom.toString())
   }
-
-  // Fetch project
-  useEffect(() => {
-    async function fetchProject() {
-      setIsLoadingProject(true)
-      try {
-        const supabase = createClient()
-        const { data, error } = await supabase
-          .from('projects')
-          .select('*')
-          .eq('id', projectId)
-          .single()
-
-        if (error || !data) {
-          setProject(null)
-          return
-        }
-
-        setProject(data as Project)
-      } catch {
-        setProject(null)
-      } finally {
-        setIsLoadingProject(false)
-      }
-    }
-
-    async function fetchWeatherLocation() {
-      const locations = await fetchStorageLocations(projectId)
-      const first = locations[0]
-      if (!first) return
-      if (first.map_center_lat != null && first.map_center_lng != null) {
-        setWeatherLocation({ lat: first.map_center_lat, lon: first.map_center_lng })
-      } else {
-        const parts = [first.address_street, first.address_number, first.address_zip, first.address_city]
-          .filter(Boolean).join(' ')
-        const addr = parts || first.address || first.name
-        if (addr) setWeatherLocation({ address: addr })
-      }
-    }
-
-    fetchProject()
-    fetchWeatherLocation()
-  }, [projectId])
 
   // Compute weeks when project loads
   useEffect(() => {
@@ -312,214 +318,8 @@ export default function ProjectDetailPage() {
     }
   }, [project, searchParams])
 
-  // Fetch project settings (PROJ-6: firma/adr override) + categories
-  useEffect(() => {
-    async function fetchSettingsAndCategories() {
-      try {
-        const supabase = createClient()
-
-        // Fetch company data for fallback (firma, adr, logo)
-        let company: { name: string | null; adr: string | null; logo_url: string | null; logo_x: number; logo_y: number } | null = null
-        const { data: { user } } = await supabase.auth.getUser()
-        if (user) {
-          const { data: profile } = await supabase
-            .from('profiles')
-            .select('company_id')
-            .eq('user_id', user.id)
-            .single()
-          if (profile?.company_id) {
-            const { data: companyRow } = await supabase
-              .from('companies')
-              .select('name, adr, logo_url, logo_x, logo_y')
-              .eq('id', profile.company_id)
-              .single()
-            if (companyRow) {
-              company = companyRow
-            }
-          }
-        }
-
-        // Fetch project_settings for firma/adr override + logo
-        const { data: settingsData } = await supabase
-          .from('project_settings')
-          .select('firma, adr, logo_url, logo_x, logo_y, logo_size')
-          .eq('project_id', projectId)
-          .single()
-
-        if (settingsData) {
-          setProject((prev) => prev ? {
-            ...prev,
-            firm: settingsData.firma ?? company?.name ?? prev.firm,
-            adr: settingsData.adr ?? company?.adr ?? prev.adr,
-          } : prev)
-
-          if (settingsData.logo_url) {
-            setProjectLogo({
-              url: settingsData.logo_url,
-              x: settingsData.logo_x ?? 0.5,
-              y: settingsData.logo_y ?? 0.5,
-              size: settingsData.logo_size ?? 0.2,
-            })
-          } else if (company?.logo_url) {
-            // Fallback to company logo — use project_settings position (where the user configured it)
-            setProjectLogo({
-              url: company.logo_url,
-              x: settingsData.logo_x ?? company.logo_x ?? 0.5,
-              y: settingsData.logo_y ?? company.logo_y ?? 0.5,
-              size: settingsData.logo_size ?? 0.2,
-            })
-          }
-        } else if (company) {
-          // No project_settings at all: use company data
-          setProject((prev) => prev ? {
-            ...prev,
-            firm: company!.name ?? prev.firm,
-            adr: company!.adr ?? prev.adr,
-          } : prev)
-          if (company.logo_url) {
-            setProjectLogo({
-              url: company.logo_url,
-              x: company.logo_x ?? 0.5,
-              y: company.logo_y ?? 0.5,
-              size: 0.2,
-            })
-          }
-        }
-
-        // Fetch project_categories (PROJ-6) + Baustelle-Geräte (PROJ-9) parallel
-        const [{ data: projCats }, { data: baustelleItems }] = await Promise.all([
-          supabase
-            .from('project_categories')
-            .select('*')
-            .eq('project_id', projectId)
-            .order('sort_order', { ascending: true }),
-          supabase
-            .from('equipment_items')
-            .select('name')
-            .eq('project_id', projectId)
-            .eq('status', 'baustelle')
-            .order('sort_order', { ascending: true }),
-        ])
-
-        const baustelleNames = (baustelleItems ?? [])
-          .map((e: { name: string | null }) => e.name)
-          .filter((n): n is string => !!n)
-
-        if (projCats && projCats.length > 0) {
-          const personal = projCats.filter((c: { typ: string }) => c.typ === 'personal').map((c: { label: string }) => c.label)
-          const equip = projCats.filter((c: { typ: string }) => c.typ === 'equipment').map((c: { label: string }) => c.label)
-          const mergedEquip = [...new Set([...equip, ...baustelleNames])]
-
-          setWorkerCategories(personal.length > 0 ? personal : undefined)
-          setEquipmentCategories(mergedEquip.length > 0 ? mergedEquip : undefined)
-          return
-        }
-
-        // Fallback: user_categories (PROJ-5)
-        const { data, error } = await supabase
-          .from('user_categories')
-          .select('*')
-          .order('sort_order', { ascending: true })
-
-        if (error || !data || data.length === 0) {
-          setWorkerCategories(undefined)
-          setEquipmentCategories(baustelleNames.length > 0 ? baustelleNames : undefined)
-          return
-        }
-
-        const personal = data.filter((c: { typ: string; label: string }) => c.typ === 'personal').map((c: { label: string }) => c.label)
-        const equip = data.filter((c: { typ: string; label: string }) => c.typ === 'equipment').map((c: { label: string }) => c.label)
-        const mergedEquip = [...new Set([...equip, ...baustelleNames])]
-
-        setWorkerCategories(personal.length > 0 ? personal : undefined)
-        setEquipmentCategories(mergedEquip.length > 0 ? mergedEquip : undefined)
-      } catch {
-        setWorkerCategories(undefined)
-        setEquipmentCategories(undefined)
-      }
-    }
-    if (project) fetchSettingsAndCategories()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [projectId, isLoadingProject])
-
-  // Fetch shifts for the entire project (all weeks, for dot raster)
-  const fetchAllShifts = useCallback(async () => {
-    if (!project) return
-
-    setIsLoadingShifts(true)
-    try {
-      const supabase = createClient()
-      const { data: shiftData, error: shiftError } = await supabase
-        .from('shifts')
-        .select('*')
-        .eq('project_id', projectId)
-        .order('datum', { ascending: true })
-
-      if (shiftError || !shiftData) {
-        setShifts([])
-        return
-      }
-
-      const shiftIds = shiftData.map((s: { id: string }) => s.id)
-
-      let workers: { id: string; shift_id: string; beruf: string; anz: number; std: number }[] = []
-      let equipment: { id: string; shift_id: string; typ: string; anz: number; std: number }[] = []
-
-      if (shiftIds.length > 0) {
-        const [workersRes, equipRes] = await Promise.all([
-          supabase.from('shift_workers').select('*').in('shift_id', shiftIds),
-          supabase.from('shift_equipment').select('*').in('shift_id', shiftIds),
-        ])
-        workers = workersRes.data ?? []
-        equipment = equipRes.data ?? []
-      }
-
-      const shiftsWithDetails: ShiftWithDetails[] = shiftData.map((s: ShiftWithDetails) => ({
-        ...s,
-        shift_workers: workers.filter((w) => w.shift_id === s.id),
-        shift_equipment: equipment.filter((e) => e.shift_id === s.id),
-      }))
-
-      setShifts(shiftsWithDetails)
-    } catch {
-      setShifts([])
-    } finally {
-      setIsLoadingShifts(false)
-    }
-  }, [project, projectId])
-
-  useEffect(() => {
-    if (project) fetchAllShifts()
-  }, [project, fetchAllShifts])
-
-  useEffect(() => {
-    const activeWeek = weeks[activeKWIndex]
-    if (!project || !activeWeek) { setAaShiftKeys(new Set()); setAaWorkDescriptions(new Map()); return }
-
-    let cancelled = false
-    const supabase = createClient()
-
-    supabase
-      .from('work_notifications')
-      .select('date, day_start, night_start, work_description')
-      .eq('project_id', projectId)
-      .eq('year', activeWeek.year)
-      .eq('calendar_week', activeWeek.kw)
-      .then(({ data, error }) => {
-        if (cancelled || error) return
-        const keys = new Set<string>()
-        const descs = new Map<string, string>()
-        for (const row of data ?? []) {
-          if (row.day_start) keys.add(`${row.date}:tag`)
-          if (row.night_start) keys.add(`${row.date}:nacht`)
-          if (row.work_description) descs.set(row.date, row.work_description)
-        }
-        setAaShiftKeys(keys)
-        setAaWorkDescriptions(descs)
-      })
-
-    return () => { cancelled = true }
-  }, [project, projectId, weeks, activeKWIndex])
+  // Effects 3+4+5 wurden durch Query-Hooks (useProjectSettingsQuery, useShiftsQuery,
+  // useWorkNotificationsQuery) ersetzt. Nur Effect 2 (KW-Berechnung) bleibt hier.
 
   // --- Shift CRUD ---
 
@@ -548,7 +348,7 @@ export default function ProjectDetailPage() {
         shift_workers: [],
         shift_equipment: [],
       }
-      setShifts((prev) => [...prev, newShift])
+      queryClient.setQueryData<ShiftWithDetails[]>(queryKeys.shifts(projectId), (prev) => [...(prev ?? []), newShift])
     } catch {
       toast.error('Schicht konnte nicht angelegt werden.')
     }
@@ -556,7 +356,7 @@ export default function ProjectDetailPage() {
 
   const handleCopyPreviousDay = async (datum: string, typ: 'tag' | 'nacht') => {
     // Find the most recent shift of same type before this date
-    const prevShift = shifts
+    const prevShift = allShifts
       .filter((s) => s.typ === typ && s.datum < datum)
       .sort((a, b) => b.datum.localeCompare(a.datum))[0] ?? null
 
@@ -627,7 +427,7 @@ export default function ProjectDetailPage() {
         shift_workers: newWorkers,
         shift_equipment: newEquipment,
       }
-      setShifts((prev) => [...prev, newShift])
+      queryClient.setQueryData<ShiftWithDetails[]>(queryKeys.shifts(projectId), (prev) => [...(prev ?? []), newShift])
     } catch {
       toast.error('Schicht konnte nicht übernommen werden.')
     }
@@ -638,8 +438,8 @@ export default function ProjectDetailPage() {
     field: string,
     value: string | number | null
   ) => {
-    setShifts((prev) =>
-      prev.map((s) => (s.id === shiftId ? { ...s, [field]: value } : s))
+    queryClient.setQueryData<ShiftWithDetails[]>(queryKeys.shifts(projectId), (prev) =>
+      (prev ?? []).map((s) => (s.id === shiftId ? { ...s, [field]: value } : s))
     )
 
     try {
@@ -651,7 +451,7 @@ export default function ProjectDetailPage() {
 
       // Sync worker/equipment hours when shift times change
       if (['beg', 'end', 'pau'].includes(field)) {
-        const shift = shifts.find((s) => s.id === shiftId)
+        const shift = allShifts.find((s) => s.id === shiftId)
         if (!shift) return
         const updated = { ...shift, [field]: value }
         if (updated.beg && updated.end) {
@@ -665,8 +465,8 @@ export default function ProjectDetailPage() {
             const workerIds = shift.shift_workers.map((w) => w.id)
             if (workerIds.length > 0) {
               await supabase.from('shift_workers').update({ std: netHours }).in('id', workerIds)
-              setShifts((prev) =>
-                prev.map((s) =>
+              queryClient.setQueryData<ShiftWithDetails[]>(queryKeys.shifts(projectId), (prev) =>
+                (prev ?? []).map((s) =>
                   s.id === shiftId
                     ? { ...s, shift_workers: s.shift_workers.map((w) => ({ ...w, std: netHours })) }
                     : s
@@ -676,8 +476,8 @@ export default function ProjectDetailPage() {
             const equipmentIds = shift.shift_equipment.map((e) => e.id)
             if (equipmentIds.length > 0) {
               await supabase.from('shift_equipment').update({ std: netHours }).in('id', equipmentIds)
-              setShifts((prev) =>
-                prev.map((s) =>
+              queryClient.setQueryData<ShiftWithDetails[]>(queryKeys.shifts(projectId), (prev) =>
+                (prev ?? []).map((s) =>
                   s.id === shiftId
                     ? { ...s, shift_equipment: s.shift_equipment.map((e) => ({ ...e, std: netHours })) }
                     : s
@@ -696,14 +496,17 @@ export default function ProjectDetailPage() {
     if (!deleteTarget) return
 
     const shiftId = deleteTarget.id
-    setShifts((prev) => prev.filter((s) => s.id !== shiftId))
+    queryClient.setQueryData<ShiftWithDetails[]>(queryKeys.shifts(projectId), (prev) =>
+      (prev ?? []).filter((s) => s.id !== shiftId)
+    )
     setDeleteTarget(null)
 
     try {
       const supabase = createClient()
       await supabase.from('shifts').delete().eq('id', shiftId)
+      await queryClient.invalidateQueries({ queryKey: queryKeys.projects() })
     } catch {
-      fetchAllShifts()
+      await queryClient.invalidateQueries({ queryKey: queryKeys.shifts(projectId) })
     }
   }
 
@@ -713,7 +516,7 @@ export default function ProjectDetailPage() {
     try {
       const supabase = createClient()
 
-      const shift = shifts.find((s) => s.id === shiftId)
+      const shift = allShifts.find((s) => s.id === shiftId)
       const netHours = shift?.beg && shift?.end
         ? (() => {
             const [bH, bM] = shift.beg!.split(':').map(Number)
@@ -733,8 +536,8 @@ export default function ProjectDetailPage() {
 
       if (error || !data) { toast.error('Mitarbeiter konnte nicht hinzugefügt werden.'); return }
 
-      setShifts((prev) =>
-        prev.map((s) =>
+      queryClient.setQueryData<ShiftWithDetails[]>(queryKeys.shifts(projectId), (prev) =>
+        (prev ?? []).map((s) =>
           s.id === shiftId
             ? { ...s, shift_workers: [...s.shift_workers, data] }
             : s
@@ -750,8 +553,8 @@ export default function ProjectDetailPage() {
     field: string,
     value: string | number
   ) => {
-    setShifts((prev) =>
-      prev.map((s) => ({
+    queryClient.setQueryData<ShiftWithDetails[]>(queryKeys.shifts(projectId), (prev) =>
+      (prev ?? []).map((s) => ({
         ...s,
         shift_workers: s.shift_workers.map((w) =>
           w.id === workerId ? { ...w, [field]: value } : w
@@ -771,8 +574,8 @@ export default function ProjectDetailPage() {
   }
 
   const handleDeleteWorker = async (workerId: string) => {
-    setShifts((prev) =>
-      prev.map((s) => ({
+    queryClient.setQueryData<ShiftWithDetails[]>(queryKeys.shifts(projectId), (prev) =>
+      (prev ?? []).map((s) => ({
         ...s,
         shift_workers: s.shift_workers.filter((w) => w.id !== workerId),
       }))
@@ -792,7 +595,7 @@ export default function ProjectDetailPage() {
     try {
       const supabase = createClient()
 
-      const shift = shifts.find((s) => s.id === shiftId)
+      const shift = allShifts.find((s) => s.id === shiftId)
       const netHours = shift?.beg && shift?.end
         ? (() => {
             const [bH, bM] = shift.beg!.split(':').map(Number)
@@ -812,8 +615,8 @@ export default function ProjectDetailPage() {
 
       if (error || !data) { toast.error('Gerät konnte nicht hinzugefügt werden.'); return }
 
-      setShifts((prev) =>
-        prev.map((s) =>
+      queryClient.setQueryData<ShiftWithDetails[]>(queryKeys.shifts(projectId), (prev) =>
+        (prev ?? []).map((s) =>
           s.id === shiftId
             ? { ...s, shift_equipment: [...s.shift_equipment, data] }
             : s
@@ -829,8 +632,8 @@ export default function ProjectDetailPage() {
     field: string,
     value: string | number
   ) => {
-    setShifts((prev) =>
-      prev.map((s) => ({
+    queryClient.setQueryData<ShiftWithDetails[]>(queryKeys.shifts(projectId), (prev) =>
+      (prev ?? []).map((s) => ({
         ...s,
         shift_equipment: s.shift_equipment.map((e) =>
           e.id === equipmentId ? { ...e, [field]: value } : e
@@ -850,8 +653,8 @@ export default function ProjectDetailPage() {
   }
 
   const handleDeleteEquipment = async (equipmentId: string) => {
-    setShifts((prev) =>
-      prev.map((s) => ({
+    queryClient.setQueryData<ShiftWithDetails[]>(queryKeys.shifts(projectId), (prev) =>
+      (prev ?? []).map((s) => ({
         ...s,
         shift_equipment: s.shift_equipment.filter((e) => e.id !== equipmentId),
       }))
@@ -868,7 +671,6 @@ export default function ProjectDetailPage() {
   // --- Arbeitsanmeldung: BTBs erstellen ---
 
   const handleCreateFromAA = async (datum: string, typ: 'tag' | 'nacht') => {
-    const activeWeek = weeks[activeKWIndex]
     if (!activeWeek) return
 
     try {
@@ -896,7 +698,7 @@ export default function ProjectDetailPage() {
         toast.success(`${data.created} BTB(s) aus Arbeitsanmeldung erstellt.`)
       }
       // Reload all shifts so grid and dot raster are up to date
-      await fetchAllShifts()
+      await queryClient.invalidateQueries({ queryKey: queryKeys.shifts(projectId) })
     } catch {
       toast.error('Fehler beim Erstellen der BTBs.')
     }
@@ -916,15 +718,14 @@ export default function ProjectDetailPage() {
   }
 
   const handlePrintKW = () => {
-    const activeWeek = weeks[activeKWIndex]
     if (!activeWeek) return
 
     const kwShifts: { shift: ShiftWithDetails; date: Date }[] = []
     for (const day of activeWeek.daysInRange) {
       const dateStr = toDateString(day)
-      const tagShift = shifts.find(s => s.datum === dateStr && s.typ === 'tag')
+      const tagShift = allShifts.find(s => s.datum === dateStr && s.typ === 'tag')
       if (tagShift) kwShifts.push({ shift: tagShift, date: day })
-      const nachtShift = shifts.find(s => s.datum === dateStr && s.typ === 'nacht')
+      const nachtShift = allShifts.find(s => s.datum === dateStr && s.typ === 'nacht')
       if (nachtShift) kwShifts.push({ shift: nachtShift, date: day })
     }
 
@@ -964,7 +765,6 @@ ${pages}
 
   // --- Render ---
 
-  const activeWeek = weeks[activeKWIndex]
   const activeDays = activeWeek?.daysInRange ?? []
 
   const deleteShiftLabel = deleteTarget

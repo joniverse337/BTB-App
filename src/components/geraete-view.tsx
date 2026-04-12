@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { PaperEngine } from '@/components/paper-engine'
 import { GeraeteActionBar } from '@/components/geraete-action-bar'
@@ -8,7 +9,6 @@ import { GeraeteCard } from '@/components/geraete-card'
 import { DeleteEquipmentDialog } from '@/components/delete-equipment-dialog'
 import { Skeleton } from '@/components/ui/skeleton'
 import {
-  fetchEquipmentItems,
   createEquipmentItem,
   updateEquipmentItem,
   changeEquipmentStatus,
@@ -20,6 +20,10 @@ import type { ProjectContact } from '@/lib/validations/project-settings'
 import { createClient } from '@/lib/supabase'
 import { LagerplatzPaper } from '@/components/lagerplatz-paper'
 import type { StorageLocation } from '@/lib/validations/storage-location'
+import { useEquipmentQuery } from '@/hooks/queries/use-equipment-query'
+import { useProjectContactsQuery } from '@/hooks/queries/use-project-contacts-query'
+import { useStorageLocationsQuery } from '@/hooks/queries/use-storage-locations-query'
+import { queryKeys } from '@/lib/query-keys'
 
 interface ContactSnapshot { id: string; funktion: string | null; name: string; phone: string | null }
 function parseSnapshots(raw: string | null): ContactSnapshot[] {
@@ -36,11 +40,12 @@ interface GeraeteViewProps {
 }
 
 export function GeraeteView({ projectId, project, companyName, printLagerplaetze, logoUrl }: GeraeteViewProps) {
-  const [items, setItems] = useState<EquipmentItem[]>([])
-  const [isLoading, setIsLoading] = useState(true)
+  const queryClient = useQueryClient()
+  const { data: items = [], isLoading } = useEquipmentQuery(projectId)
+  const { data: projectContacts = [] } = useProjectContactsQuery(projectId)
+  const { data: storageLocations = [] } = useStorageLocationsQuery(printLagerplaetze ? projectId : undefined)
   const [zoom, setZoom] = useState(60)
   const [deleteTarget, setDeleteTarget] = useState<EquipmentItem | null>(null)
-  const [projectContacts, setProjectContacts] = useState<ProjectContact[]>([])
   const [contactsByStatus, setContactsByStatus] = useState<Record<EquipmentStatus, ContactSnapshot[]>>({
     bedarf: [], baustelle: [], frei: [],
   })
@@ -49,30 +54,10 @@ export function GeraeteView({ projectId, project, companyName, printLagerplaetze
   const bedarfWrapperRef = useRef<HTMLDivElement>(null)
   const baustelleWrapperRef = useRef<HTMLDivElement>(null)
   const freiWrapperRef = useRef<HTMLDivElement>(null)
-  const [storageLocations, setStorageLocations] = useState<StorageLocation[]>([])
 
-  // Load equipment items
-  const loadItems = useCallback(async () => {
-    setIsLoading(true)
-    try {
-      const data = await fetchEquipmentItems(projectId)
-      setItems(data)
-    } catch {
-      toast.error('Fehler beim Laden der Geräte.')
-    } finally {
-      setIsLoading(false)
-    }
-  }, [projectId])
-
-  useEffect(() => {
-    loadItems()
-  }, [loadItems])
-
-  // Fetch project contacts + saved contact selections
+  // Fetch saved contact selections from project_settings
   useEffect(() => {
     const supabase = createClient()
-    supabase.from('project_contacts').select('*').eq('project_id', projectId).order('sort_order')
-      .then(({ data }) => { if (data) setProjectContacts(data as ProjectContact[]) })
     supabase.from('project_settings')
       .select('equipment_bedarf_contacts, equipment_baustelle_contacts, equipment_frei_contacts')
       .eq('project_id', projectId).single()
@@ -84,20 +69,6 @@ export function GeraeteView({ projectId, project, companyName, printLagerplaetze
         })
       })
   }, [projectId])
-
-  // Lagerplatz-Daten für Print-Append laden
-  useEffect(() => {
-    if (!printLagerplaetze) return
-    const supabase = createClient()
-    supabase
-      .from('storage_locations')
-      .select('*')
-      .eq('project_id', projectId)
-      .order('sort_order', { ascending: true })
-      .order('created_at', { ascending: true })
-      .limit(10)
-      .then(({ data }) => { if (data) setStorageLocations(data as StorageLocation[]) })
-  }, [projectId, printLagerplaetze])
 
   const handleContactsChange = useCallback(async (status: EquipmentStatus, contacts: ContactSnapshot[]) => {
     setContactsByStatus((prev) => ({ ...prev, [status]: contacts }))
@@ -121,27 +92,26 @@ export function GeraeteView({ projectId, project, companyName, printLagerplaetze
       sort_order: maxOrder + 1,
     })
     if (created) {
-      setItems((prev) => [...prev, created])
+      queryClient.setQueryData<EquipmentItem[]>(queryKeys.equipment(projectId), (prev) => [...(prev ?? []), created])
     } else {
       toast.error('Fehler beim Anlegen des Geräts.')
     }
-  }, [projectId, items])
+  }, [projectId, items, queryClient])
 
   // Update equipment field on blur
   const handleUpdateField = useCallback(
     async (id: string, field: string, value: string | null) => {
       // Optimistic update
-      setItems((prev) =>
-        prev.map((item) => (item.id === id ? { ...item, [field]: value } : item))
+      queryClient.setQueryData<EquipmentItem[]>(queryKeys.equipment(projectId), (prev) =>
+        (prev ?? []).map((item) => (item.id === id ? { ...item, [field]: value } : item))
       )
       const updated = await updateEquipmentItem(id, { [field]: value })
       if (!updated) {
         toast.error('Speichern fehlgeschlagen.')
-        // Reload to get correct state
-        loadItems()
+        await queryClient.invalidateQueries({ queryKey: queryKeys.equipment(projectId) })
       }
     },
-    [loadItems]
+    [projectId, queryClient]
   )
 
   // Change status
@@ -149,14 +119,14 @@ export function GeraeteView({ projectId, project, companyName, printLagerplaetze
     async (id: string, from: EquipmentStatus, to: EquipmentStatus) => {
       const result = await changeEquipmentStatus(id, from, to)
       if (result) {
-        setItems((prev) =>
-          prev.map((item) => (item.id === id ? result : item))
+        queryClient.setQueryData<EquipmentItem[]>(queryKeys.equipment(projectId), (prev) =>
+          (prev ?? []).map((item) => (item.id === id ? result : item))
         )
       } else {
         toast.error('Statuswechsel fehlgeschlagen.')
       }
     },
-    []
+    [projectId, queryClient]
   )
 
   // Delete equipment
@@ -164,12 +134,14 @@ export function GeraeteView({ projectId, project, companyName, printLagerplaetze
     if (!deleteTarget) return
     const success = await deleteEquipmentItem(deleteTarget.id)
     if (success) {
-      setItems((prev) => prev.filter((i) => i.id !== deleteTarget.id))
+      queryClient.setQueryData<EquipmentItem[]>(queryKeys.equipment(projectId), (prev) =>
+        (prev ?? []).filter((i) => i.id !== deleteTarget.id)
+      )
       setDeleteTarget(null)
     } else {
       toast.error('Fehler beim Löschen des Geräts.')
     }
-  }, [deleteTarget])
+  }, [deleteTarget, projectId, queryClient])
 
   // Print all 3 cards (+ Lagerplatz-Append wenn aktiviert)
   const handlePrint = useCallback(() => {

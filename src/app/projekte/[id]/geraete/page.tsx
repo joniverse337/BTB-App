@@ -1,104 +1,23 @@
 'use client'
 
-import { useEffect, useState } from 'react'
 import { useParams } from 'next/navigation'
 import { AlertCircle } from 'lucide-react'
 import { Skeleton } from '@/components/ui/skeleton'
 import { ProjectDetailHeader } from '@/components/project-detail-header'
 import { GeraeteView } from '@/components/geraete-view'
-import { createClient } from '@/lib/supabase'
-import type { Project } from '@/lib/validations/project'
+import { useProjectQuery } from '@/hooks/queries/use-project-query'
+import { useProjectSettingsQuery } from '@/hooks/queries/use-project-settings-query'
 
 export default function GeraetePage() {
   const params = useParams()
   const projectId = params.id as string
 
-  const [project, setProject] = useState<Project | null>(null)
-  const [isLoadingProject, setIsLoadingProject] = useState(true)
-  const [companyName, setCompanyName] = useState<string | null>(null)
-  const [logoUrl, setLogoUrl] = useState<string | null>(null)
-  const [printLagerplaetze, setPrintLagerplaetze] = useState(false)
+  const { data: project, isLoading: isLoadingProject } = useProjectQuery(projectId)
+  const { data: settings } = useProjectSettingsQuery(projectId)
 
-  // Fetch project
-  useEffect(() => {
-    async function fetchProject() {
-      setIsLoadingProject(true)
-      try {
-        const supabase = createClient()
-        const { data, error } = await supabase
-          .from('projects')
-          .select('*')
-          .eq('id', projectId)
-          .single()
-
-        if (error || !data) {
-          setProject(null)
-          return
-        }
-
-        setProject(data as Project)
-      } catch {
-        setProject(null)
-      } finally {
-        setIsLoadingProject(false)
-      }
-    }
-    fetchProject()
-  }, [projectId])
-
-  // Fetch company info
-  useEffect(() => {
-    async function fetchCompanyInfo() {
-      try {
-        const supabase = createClient()
-
-        // Check project_settings first
-        const { data: settingsData } = await supabase
-          .from('project_settings')
-          .select('firma, logo_url, print_lagerplaetze_with_geraete')
-          .eq('project_id', projectId)
-          .single()
-
-        if (settingsData?.logo_url) setLogoUrl(settingsData.logo_url)
-        if (settingsData?.print_lagerplaetze_with_geraete) setPrintLagerplaetze(true)
-
-        if (settingsData?.firma) {
-          setCompanyName(settingsData.firma)
-          return
-        }
-
-        // Fallback: company from profile
-        const { data: { user } } = await supabase.auth.getUser()
-        if (user) {
-          const { data: profile } = await supabase
-            .from('profiles')
-            .select('company_id')
-            .eq('user_id', user.id)
-            .single()
-          if (profile?.company_id) {
-            const { data: companyRow } = await supabase
-              .from('companies')
-              .select('name')
-              .eq('id', profile.company_id)
-              .single()
-            if (companyRow?.name) {
-              setCompanyName(companyRow.name)
-              return
-            }
-          }
-        }
-
-        // Fallback: project firm field
-        if (project?.firm) {
-          setCompanyName(project.firm)
-        }
-      } catch {
-        // Ignore errors -- company name is optional
-      }
-    }
-    if (project) fetchCompanyInfo()
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [projectId, isLoadingProject])
+  const companyName = settings?.firma ?? project?.firm ?? 'Firmenname'
+  const logoUrl = settings?.logo?.url ?? null
+  const printLagerplaetze = settings?.printLagerplaetzeWithGeraete ?? false
 
   // Loading state
   if (isLoadingProject) {
@@ -139,7 +58,7 @@ export default function GeraetePage() {
       <GeraeteView
         projectId={projectId}
         project={project}
-        companyName={companyName ?? project?.firm ?? 'Firmenname'}
+        companyName={companyName}
         printLagerplaetze={printLagerplaetze}
         logoUrl={logoUrl}
       />

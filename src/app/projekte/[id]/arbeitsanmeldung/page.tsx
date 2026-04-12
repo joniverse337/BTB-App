@@ -1,7 +1,8 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useParams, useRouter, useSearchParams } from 'next/navigation'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { AlertCircle, Copy } from 'lucide-react'
 import { addDays } from 'date-fns'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -22,11 +23,14 @@ import { WorkNotificationTable } from '@/components/work-notification-table'
 import { createClient } from '@/lib/supabase'
 import { getKWsForRange, getCurrentKWIndex, toDateString } from '@/lib/kw-utils'
 import type { KWInfo } from '@/lib/kw-utils'
-import type { Project } from '@/lib/validations/project'
 import { toast } from 'sonner'
+import { useProjectQuery } from '@/hooks/queries/use-project-query'
+import { useProjectSettingsQuery } from '@/hooks/queries/use-project-settings-query'
+import { useProjectContactsQuery } from '@/hooks/queries/use-project-contacts-query'
+import { useWorkNotificationsQuery } from '@/hooks/queries/use-work-notifications-query'
+import { queryKeys } from '@/lib/query-keys'
 
 import type { WorkNotificationRow } from '@/lib/validations/work-notification'
-import type { ProjectContact } from '@/lib/validations/project-settings'
 
 const WEEKDAY_NAMES = ['Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag', 'Samstag', 'Sonntag']
 
@@ -65,66 +69,55 @@ export default function ArbeitsanmeldungPage() {
   const projectId = params.id as string
   const router = useRouter()
   const searchParams = useSearchParams()
+  const queryClient = useQueryClient()
 
-  const [project, setProject] = useState<Project | null>(null)
-  const [isLoadingProject, setIsLoadingProject] = useState(true)
+  // ── Remote Data ──────────────────────────────────────────────
+  const { data: project, isLoading: isLoadingProject } = useProjectQuery(projectId)
+  const { data: settings } = useProjectSettingsQuery(projectId)
+  const { data: projectContacts = [] } = useProjectContactsQuery(projectId)
+
+  // Abgeleitete Werte aus Settings
+  const companyInfo = useMemo(() => ({
+    name: settings?.firma ?? project?.firm ?? null,
+    adr: settings?.adr ?? project?.adr ?? null,
+  }), [settings, project])
+  const aaLogo = settings?.aaLogo ?? null
+  const equipmentCategories = useMemo(
+    () => settings?.equipmentCategories ?? [],
+    [settings]
+  )
+
+  // Work-Notification-Index: welche KWs haben bereits Einträge (für printedWeeks-Chips)
+  const { data: notificationIndex } = useQuery({
+    queryKey: queryKeys.workNotificationsIndex(projectId),
+    queryFn: async () => {
+      const supabase = createClient()
+      const { data } = await supabase
+        .from('work_notifications')
+        .select('year, calendar_week')
+        .eq('project_id', projectId)
+      return (data ?? []) as { year: number; calendar_week: number }[]
+    },
+    enabled: !!projectId,
+  })
+
+  // ── UI State ─────────────────────────────────────────────────
   const [weeks, setWeeks] = useState<KWInfo[]>([])
   const [activeKWIndex, setActiveKWIndex] = useState(0)
   const [rows, setRows] = useState<WorkNotificationRow[]>([])
   const [activeDays, setActiveDays] = useState<Set<number>>(new Set())
-  const [isLoadingRows, setIsLoadingRows] = useState(false)
   const [aaExists, setAaExists] = useState(false)
   const [showOverwriteDialog, setShowOverwriteDialog] = useState(false)
   const [zoom, setZoom] = useState(75)
-  const [printedWeeks, setPrintedWeeks] = useState<Set<string>>(new Set())
+  const [localPrintedWeeks, setLocalPrintedWeeks] = useState<Set<string>>(new Set())
 
-  // Load printed-weeks from DB (which KWs have existing work_notifications)
-  useEffect(() => {
-    if (!projectId) return
-    const supabase = createClient()
-    supabase
-      .from('work_notifications')
-      .select('year, calendar_week')
-      .eq('project_id', projectId)
-      .then(({ data }) => {
-        if (!data) return
-        const keys = new Set(data.map((r: { year: number; calendar_week: number }) => `${r.year}_${r.calendar_week}`))
-        setPrintedWeeks(keys)
-      })
-  }, [projectId])
-
-  // Logo state
-  const [aaLogo, setAaLogo] = useState<{ url: string; x: number; y: number; size: number } | null>(null)
-  const [companyInfo, setCompanyInfo] = useState<{ name: string | null; adr: string | null }>({ name: null, adr: null })
-  const [equipmentCategories, setEquipmentCategories] = useState<string[]>([])
-  const [projectContacts, setProjectContacts] = useState<ProjectContact[]>([])
-
-  // Fetch project
-  useEffect(() => {
-    async function fetchProject() {
-      setIsLoadingProject(true)
-      try {
-        const supabase = createClient()
-        const { data, error } = await supabase
-          .from('projects')
-          .select('*')
-          .eq('id', projectId)
-          .single()
-
-        if (error || !data) {
-          setProject(null)
-          return
-        }
-
-        setProject(data as Project)
-      } catch {
-        setProject(null)
-      } finally {
-        setIsLoadingProject(false)
-      }
-    }
-    fetchProject()
-  }, [projectId])
+  // printedWeeks: aus Server-Daten + lokalen Druckvorgängen
+  const printedWeeks = useMemo(() => {
+    const fromServer = new Set(
+      (notificationIndex ?? []).map(r => `${r.year}_${r.calendar_week}`)
+    )
+    return new Set([...fromServer, ...localPrintedWeeks])
+  }, [notificationIndex, localPrintedWeeks])
 
   // Compute weeks when project loads
   useEffect(() => {
@@ -143,141 +136,37 @@ export default function ArbeitsanmeldungPage() {
     }
   }, [project, searchParams])
 
-  // Fetch company info + logo settings
+  // Aktuelle Woche
+  const activeWeek = weeks[activeKWIndex]
+
+  // Fetch work notifications for active KW
+  const { data: dbRows, isLoading: isLoadingRows } = useWorkNotificationsQuery(
+    projectId,
+    activeWeek?.year,
+    activeWeek?.kw
+  )
+
+  // Lokale Rows aus DB-Daten initialisieren (wird bei KW-Wechsel neu gesetzt)
   useEffect(() => {
-    async function fetchSettings() {
-      try {
-        const supabase = createClient()
-
-        // Fetch company data
-        let company: { name: string | null; adr: string | null; logo_url: string | null; logo_x: number; logo_y: number } | null = null
-        const { data: { user } } = await supabase.auth.getUser()
-        if (user) {
-          const { data: profile } = await supabase
-            .from('profiles')
-            .select('company_id')
-            .eq('user_id', user.id)
-            .single()
-          if (profile?.company_id) {
-            const { data: companyRow } = await supabase
-              .from('companies')
-              .select('name, adr, logo_url, logo_x, logo_y')
-              .eq('id', profile.company_id)
-              .single()
-            if (companyRow) {
-              company = companyRow
-            }
-          }
-        }
-
-        // Fetch project_settings for logo
-        const { data: settingsData } = await supabase
-          .from('project_settings')
-          .select('firma, adr, logo_url, logo_x, logo_y, logo_size, aa_logo_x, aa_logo_y, aa_logo_size')
-          .eq('project_id', projectId)
-          .single()
-
-        // Set company info (firma/adr)
-        const firma = settingsData?.firma ?? company?.name ?? project?.firm ?? null
-        const adr = settingsData?.adr ?? company?.adr ?? project?.adr ?? null
-        setCompanyInfo({ name: firma, adr })
-
-        // Override project firm/adr
-        if (firma || adr) {
-          setProject((prev) => prev ? { ...prev, firm: firma ?? prev.firm, adr: adr ?? prev.adr } : prev)
-        }
-
-        // Fetch equipment categories for Maschinen quick buttons
-        const { data: catData } = await supabase
-          .from('project_categories')
-          .select('label')
-          .eq('project_id', projectId)
-          .eq('typ', 'equipment')
-          .order('sort_order', { ascending: true })
-        if (catData && catData.length > 0) {
-          setEquipmentCategories(catData.map((c: { label: string }) => c.label))
-        }
-
-        // Fetch project contacts
-        const { data: contactData } = await supabase
-          .from('project_contacts')
-          .select('*')
-          .eq('project_id', projectId)
-          .order('sort_order', { ascending: true })
-        if (contactData) setProjectContacts(contactData as ProjectContact[])
-
-        // Logo fallback chain for AA
-        if (settingsData?.logo_url) {
-          setAaLogo({
-            url: settingsData.logo_url,
-            x: settingsData.aa_logo_x ?? settingsData.logo_x ?? 0.5,
-            y: settingsData.aa_logo_y ?? settingsData.logo_y ?? 0.5,
-            size: settingsData.aa_logo_size ?? settingsData.logo_size ?? 0.2,
-          })
-        } else if (company?.logo_url) {
-          setAaLogo({
-            url: company.logo_url,
-            x: settingsData?.aa_logo_x ?? settingsData?.logo_x ?? company.logo_x ?? 0.5,
-            y: settingsData?.aa_logo_y ?? settingsData?.logo_y ?? company.logo_y ?? 0.5,
-            size: settingsData?.aa_logo_size ?? settingsData?.logo_size ?? 0.2,
-          })
-        }
-      } catch {
-        // Ignore errors — logo is optional
-      }
+    if (!activeWeek) return
+    if (!dbRows || dbRows.length === 0) {
+      setRows(buildEmptyRows(projectId, activeWeek))
+      setActiveDays(new Set())
+      setAaExists(false)
+      return
     }
-    if (project) fetchSettings()
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [projectId, isLoadingProject])
-
-  // Fetch work notification rows for active KW
-  const fetchRows = useCallback(async () => {
-    const activeWeek = weeks[activeKWIndex]
-    if (!activeWeek || !project) return
-
-    setIsLoadingRows(true)
-    try {
-      const supabase = createClient()
-      const { data, error } = await supabase
-        .from('work_notifications')
-        .select('*')
-        .eq('project_id', projectId)
-        .eq('year', activeWeek.year)
-        .eq('calendar_week', activeWeek.kw)
-        .order('weekday_nr', { ascending: true })
-
-      if (error || !data || data.length === 0) {
-        setRows(buildEmptyRows(projectId, activeWeek))
-        setActiveDays(new Set())
-        setAaExists(false)
-        return
-      }
-
-      setAaExists(true)
-      // Merge fetched data with empty template (ensure all 7 days)
-      const template = buildEmptyRows(projectId, activeWeek)
-      const merged = template.map((emptyRow) => {
-        const found = data.find((d: WorkNotificationRow) => d.weekday_nr === emptyRow.weekday_nr)
-        return found ? { ...emptyRow, ...found } : emptyRow
-      })
-      const existingNrs = new Set(
-        (data as WorkNotificationRow[]).filter(d => d.id).map(d => d.weekday_nr)
-      )
-      setActiveDays(existingNrs.size > 0 ? existingNrs : new Set())
-      setRows(merged)
-    } catch {
-      const activeWeek = weeks[activeKWIndex]
-      if (activeWeek) {
-        setRows(buildEmptyRows(projectId, activeWeek))
-      }
-    } finally {
-      setIsLoadingRows(false)
-    }
-  }, [weeks, activeKWIndex, project, projectId])
-
-  useEffect(() => {
-    if (weeks.length > 0 && project) fetchRows()
-  }, [weeks, activeKWIndex, project, fetchRows])
+    setAaExists(true)
+    const template = buildEmptyRows(projectId, activeWeek)
+    const merged = template.map((emptyRow) => {
+      const found = dbRows.find((d) => d.weekday_nr === emptyRow.weekday_nr)
+      return found ? { ...emptyRow, ...found } : emptyRow
+    })
+    const existingNrs = new Set(
+      dbRows.filter((d) => d.id).map((d) => d.weekday_nr)
+    )
+    setActiveDays(existingNrs.size > 0 ? existingNrs : new Set())
+    setRows(merged)
+  }, [dbRows, activeWeek, projectId])
 
   // Create AA for current KW (no eager DB write — first field blur saves)
   const handleCreateAA = () => {
@@ -372,7 +261,6 @@ export default function ArbeitsanmeldungPage() {
         : r
     ))
     try {
-      const activeWeek = weeks[activeKWIndex]
       if (!activeWeek) return
       const supabase = createClient()
       await supabase.from('work_notifications')
@@ -505,7 +393,14 @@ export default function ArbeitsanmeldungPage() {
       }
 
       toast.success(`Daten aus KW ${weeks[activeKWIndex - 1]?.kw} übernommen.`)
-      fetchRows()
+      if (activeWeek) {
+        await queryClient.invalidateQueries({
+          queryKey: queryKeys.workNotifications(projectId, activeWeek.year, activeWeek.kw),
+        })
+        await queryClient.invalidateQueries({
+          queryKey: queryKeys.workNotificationsIndex(projectId),
+        })
+      }
     } catch {
       toast.error('Fehler beim Kopieren der Vorwoche.')
     }
@@ -537,7 +432,6 @@ export default function ArbeitsanmeldungPage() {
 
   // Delete AA for current KW
   const handleDeleteAA = async () => {
-    const activeWeek = weeks[activeKWIndex]
     if (!activeWeek) return
     try {
       const supabase = createClient()
@@ -546,12 +440,15 @@ export default function ArbeitsanmeldungPage() {
         .eq('project_id', projectId)
         .eq('year', activeWeek.year)
         .eq('calendar_week', activeWeek.kw)
-      setAaExists(false)
-      setActiveDays(new Set())
-      setRows(buildEmptyRows(projectId, activeWeek))
-      // Druckstatus zurücksetzen
+      await queryClient.invalidateQueries({
+        queryKey: queryKeys.workNotifications(projectId, activeWeek.year, activeWeek.kw),
+      })
+      await queryClient.invalidateQueries({
+        queryKey: queryKeys.workNotificationsIndex(projectId),
+      })
+      // Lokalen Druckstatus zurücksetzen
       const key = `${activeWeek.year}_${activeWeek.kw}`
-      setPrintedWeeks((prev) => {
+      setLocalPrintedWeeks((prev) => {
         const next = new Set([...prev])
         next.delete(key)
         return next
@@ -568,7 +465,6 @@ export default function ArbeitsanmeldungPage() {
       toast.warning('Keine aktiven Tage zum Drucken.')
       return
     }
-    const activeWeek = weeks[activeKWIndex]
     const prevTitle = document.title
     if (activeWeek) {
       document.title = `Arbeitsanmeldung KW ${activeWeek.kw} ${project?.name || ''}`.trim()
@@ -578,12 +474,11 @@ export default function ArbeitsanmeldungPage() {
     window.addEventListener('afterprint', () => { document.title = prevTitle }, { once: true })
     if (activeWeek) {
       const key = `${activeWeek.year}_${activeWeek.kw}`
-      setPrintedWeeks((prev) => new Set([...prev, key]))
+      setLocalPrintedWeeks((prev) => new Set([...prev, key]))
     }
   }
 
   // Determine which days are out of range
-  const activeWeek = weeks[activeKWIndex]
   const disabledDays = new Set<number>()
   if (activeWeek && project?.lz_von && project?.lz_bis) {
     for (let i = 0; i < 7; i++) {
@@ -740,6 +635,7 @@ export default function ArbeitsanmeldungPage() {
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'stretch', gap: '12px' }}>
                 <button
                   onClick={handleCreateAA}
+                  className="empty-slot-btn-primary"
                   style={{
                     display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
                     padding: '10px 20px', borderRadius: '6px',
@@ -752,6 +648,7 @@ export default function ArbeitsanmeldungPage() {
                 {activeKWIndex > 0 && (
                   <button
                     onClick={handleCopyPreviousWeek}
+                    className="empty-slot-btn-secondary"
                     style={{
                       display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
                       padding: '10px 20px', borderRadius: '6px',

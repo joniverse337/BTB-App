@@ -3,6 +3,7 @@ import "./globals.css"
 import { Toaster } from 'sonner'
 import { Inter, IBM_Plex_Sans } from 'next/font/google'
 import { headers } from 'next/headers'
+import { Providers } from './providers'
 
 const inter = Inter({
   subsets: ['latin'],
@@ -34,8 +35,10 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
   return (
     <html lang="de" className={`dark ${inter.variable} ${ibmPlexSans.variable}`} suppressHydrationWarning>
       <body className="antialiased">
-        {children}
-        <Toaster theme="dark" />
+        <Providers>
+          {children}
+          <Toaster theme="dark" />
+        </Providers>
       </body>
     </html>
   )

@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { Plus } from 'lucide-react'
 import { LagerplaetzeActionBar } from '@/components/lagerplaetze-action-bar'
@@ -17,7 +18,6 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
 import {
-  fetchStorageLocations,
   createStorageLocation,
   deleteStorageLocation,
   getNextSortOrder,
@@ -25,8 +25,9 @@ import {
 } from '@/lib/services/storage-location-service'
 import type { StorageLocation } from '@/lib/validations/storage-location'
 import type { Project } from '@/lib/validations/project'
-import type { ProjectContact } from '@/lib/validations/project-settings'
-import { createClient } from '@/lib/supabase'
+import { useStorageLocationsQuery } from '@/hooks/queries/use-storage-locations-query'
+import { useProjectContactsQuery } from '@/hooks/queries/use-project-contacts-query'
+import { queryKeys } from '@/lib/query-keys'
 
 interface LagerplaetzeViewProps {
   projectId: string
@@ -58,10 +59,10 @@ function NewLocationCard({ onCreate }: { onCreate: () => void }) {
 // ── Main View ─────────────────────────────────────────────
 
 export function LagerplaetzeView({ projectId, project, companyName, logoUrl }: LagerplaetzeViewProps) {
-  const [locations, setLocations] = useState<StorageLocation[]>([])
+  const queryClient = useQueryClient()
+  const { data: locations = [], isLoading } = useStorageLocationsQuery(projectId)
+  const { data: projectContacts = [] } = useProjectContactsQuery(projectId)
   const [activeId, setActiveId] = useState<string | null>(null)
-  const [isLoading, setIsLoading] = useState(true)
-  const [projectContacts, setProjectContacts] = useState<ProjectContact[]>([])
   const [zoom, setZoom] = useState(60)
   const [deleteTarget, setDeleteTarget] = useState<StorageLocation | null>(null)
 
@@ -102,25 +103,12 @@ export function LagerplaetzeView({ projectId, project, companyName, logoUrl }: L
     [activeId]
   )
 
-  // Load locations + project contacts in parallel
+  // Set initial active location when data loads
   useEffect(() => {
-    let cancelled = false
-    setIsLoading(true)
-    const supabase = createClient()
-    Promise.all([
-      fetchStorageLocations(projectId),
-      supabase.from('project_contacts').select('*').eq('project_id', projectId).order('sort_order'),
-    ])
-      .then(([locs, { data: contacts }]) => {
-        if (cancelled) return
-        setLocations(locs)
-        if (locs.length > 0) setActiveId(locs[0].id)
-        if (contacts) setProjectContacts(contacts as ProjectContact[])
-      })
-      .catch(() => toast.error('Fehler beim Laden der Lagerplaetze.'))
-      .finally(() => { if (!cancelled) setIsLoading(false) })
-    return () => { cancelled = true }
-  }, [projectId])
+    if (locations.length > 0 && !activeId) {
+      setActiveId(locations[0].id)
+    }
+  }, [locations, activeId])
 
   // Create
   const handleCreate = useCallback(async () => {
@@ -131,7 +119,7 @@ export function LagerplaetzeView({ projectId, project, companyName, logoUrl }: L
       ])
       const created = await createStorageLocation({ project_id: projectId, name, sort_order: sortOrder })
       if (created) {
-        setLocations((prev) => [...prev, created])
+        queryClient.setQueryData<StorageLocation[]>(queryKeys.storageLocations(projectId), (prev) => [...(prev ?? []), created])
         setActiveId(created.id)
         toast.success(`"${created.name}" erstellt.`)
       } else {
@@ -140,15 +128,15 @@ export function LagerplaetzeView({ projectId, project, companyName, logoUrl }: L
     } catch {
       toast.error('Fehler beim Erstellen des Lagerplatzes.')
     }
-  }, [projectId])
+  }, [projectId, queryClient])
 
   // Delete
   const handleDelete = useCallback(async () => {
     if (!deleteTarget) return
     const success = await deleteStorageLocation(deleteTarget.id)
     if (success) {
-      setLocations((prev) => {
-        const remaining = prev.filter((l) => l.id !== deleteTarget.id)
+      queryClient.setQueryData<StorageLocation[]>(queryKeys.storageLocations(projectId), (prev) => {
+        const remaining = (prev ?? []).filter((l) => l.id !== deleteTarget.id)
         if (activeId === deleteTarget.id) {
           setActiveId(remaining.length > 0 ? remaining[0].id : null)
         }
@@ -159,7 +147,7 @@ export function LagerplaetzeView({ projectId, project, companyName, logoUrl }: L
     } else {
       toast.error('Fehler beim Loeschen des Lagerplatzes.')
     }
-  }, [deleteTarget, activeId])
+  }, [deleteTarget, activeId, projectId, queryClient])
 
   // Action bar delegates to active card
   const handleScreenshot = useCallback(() => getActiveRef()?.takeScreenshot(), [getActiveRef])

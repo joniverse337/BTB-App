@@ -39,16 +39,26 @@ export async function fetchProject(projectId: string): Promise<Project | null> {
 
 /**
  * Fetch all shifts for a project with workers and equipment.
+ * @param since - Optional ISO date string (YYYY-MM-DD) to filter shifts from a certain date onwards.
+ *                When omitted, all shifts are returned. Used by the startup prefetcher
+ *                to limit the initial cache warming to the last 8 weeks.
  */
 export async function fetchShiftsWithDetails(
-  projectId: string
+  projectId: string,
+  since?: string
 ): Promise<ShiftWithDetails[]> {
   const supabase = createClient()
-  const { data: shiftData, error: shiftError } = await supabase
+  let query = supabase
     .from('shifts')
     .select('*')
     .eq('project_id', projectId)
     .order('datum', { ascending: true })
+
+  if (since) {
+    query = query.gte('datum', since)
+  }
+
+  const { data: shiftData, error: shiftError } = await query
 
   if (shiftError || !shiftData) return []
 
@@ -81,8 +91,10 @@ export async function fetchProjectSettingsWithFallback(projectId: string): Promi
   firma: string | null
   adr: string | null
   logo: { url: string; x: number; y: number; size: number } | null
+  aaLogo: { url: string; x: number; y: number; size: number } | null
   workerCategories: string[] | undefined
   equipmentCategories: string[] | undefined
+  printLagerplaetzeWithGeraete: boolean
 }> {
   const supabase = createClient()
 
@@ -108,7 +120,7 @@ export async function fetchProjectSettingsWithFallback(projectId: string): Promi
   // Fetch project_settings
   const { data: settingsData } = await supabase
     .from('project_settings')
-    .select('firma, adr, logo_url, logo_x, logo_y, logo_size')
+    .select('firma, adr, logo_url, logo_x, logo_y, logo_size, aa_logo_x, aa_logo_y, aa_logo_size, print_lagerplaetze_with_geraete')
     .eq('project_id', projectId)
     .single()
 
@@ -178,5 +190,25 @@ export async function fetchProjectSettingsWithFallback(projectId: string): Promi
     }
   }
 
-  return { firma, adr, logo, workerCategories, equipmentCategories }
+  const printLagerplaetzeWithGeraete = settingsData?.print_lagerplaetze_with_geraete === true
+
+  // AA-Logo: uses aa_logo_x/y/size with fallback to regular logo positioning
+  let aaLogo: { url: string; x: number; y: number; size: number } | null = null
+  if (settingsData?.logo_url) {
+    aaLogo = {
+      url: settingsData.logo_url,
+      x: settingsData.aa_logo_x ?? settingsData.logo_x ?? 0.5,
+      y: settingsData.aa_logo_y ?? settingsData.logo_y ?? 0.5,
+      size: settingsData.aa_logo_size ?? settingsData.logo_size ?? 0.2,
+    }
+  } else if (company?.logo_url) {
+    aaLogo = {
+      url: company.logo_url,
+      x: settingsData?.aa_logo_x ?? settingsData?.logo_x ?? company.logo_x ?? 0.5,
+      y: settingsData?.aa_logo_y ?? settingsData?.logo_y ?? company.logo_y ?? 0.5,
+      size: settingsData?.aa_logo_size ?? settingsData?.logo_size ?? 0.2,
+    }
+  }
+
+  return { firma, adr, logo, aaLogo, workerCategories, equipmentCategories, printLagerplaetzeWithGeraete }
 }

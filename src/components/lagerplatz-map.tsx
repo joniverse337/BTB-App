@@ -86,6 +86,7 @@ export const LagerplatzMap = forwardRef<LagerplatzMapRef, LagerplatzMapProps>(
         map.on('moveend', () => {
           if (moveTimeoutRef.current) clearTimeout(moveTimeoutRef.current)
           moveTimeoutRef.current = setTimeout(() => {
+            moveTimeoutRef.current = null
             if (!map) return
             const c = map.getCenter()
             onMoveEnd({ lat: c.lat, lng: c.lng }, map.getZoom())
@@ -98,7 +99,14 @@ export const LagerplatzMap = forwardRef<LagerplatzMapRef, LagerplatzMapProps>(
       initMap()
 
       return () => {
-        if (moveTimeoutRef.current) clearTimeout(moveTimeoutRef.current)
+        // Flush pending moveend: call onMoveEnd immediately before destroying the map
+        // so the parent can persist the final position even if the user navigates away quickly.
+        if (moveTimeoutRef.current && map) {
+          clearTimeout(moveTimeoutRef.current)
+          moveTimeoutRef.current = null
+          const c = map.getCenter()
+          onMoveEnd({ lat: c.lat, lng: c.lng }, map.getZoom())
+        }
         if (markerRef.current) { markerRef.current.remove(); markerRef.current = null }
         if (map) { map.remove(); mapInstanceRef.current = null }
       }

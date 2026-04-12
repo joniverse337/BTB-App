@@ -1,15 +1,17 @@
 'use client'
 
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { PaperEngine } from '@/components/paper-engine'
 import { LagerplatzPaper } from '@/components/lagerplatz-paper'
 import { LagerplatzMap, type LagerplatzMapRef } from '@/components/lagerplatz-map'
 import { LagerplatzCanvas } from '@/components/lagerplatz-canvas'
 import { updateStorageLocation, clearLocationScreenshot } from '@/lib/services/storage-location-service'
-import type { StorageLocation, Stroke } from '@/lib/validations/storage-location'
+import type { StorageLocation, Stroke, UpdateStorageLocationInput } from '@/lib/validations/storage-location'
 import type { Project } from '@/lib/validations/project'
 import type { ProjectContact } from '@/lib/validations/project-settings'
+import { queryKeys } from '@/lib/query-keys'
 
 export interface ContactSnapshot { id: string; funktion: string | null; name: string; phone: string | null }
 
@@ -96,9 +98,27 @@ export const LagerplatzCard = forwardRef<LagerplatzCardRef, LagerplatzCardProps>
     { location, project, companyName, logoUrl, zoom, penColor, penWidth, projectContacts, isActive, onActivate, onDelete, onStateChange, projectId },
     ref
   ) {
+    const queryClient = useQueryClient()
     const mapboxToken = process.env.NEXT_PUBLIC_MAPBOX_TOKEN
     const mapRef = useRef<LagerplatzMapRef | null>(null)
     const wrapperRef = useRef<HTMLDivElement>(null)
+
+    // Wrapper: save to Supabase AND update React Query cache immediately.
+    // Required because staleTime is 5 min — without this, navigating away and back
+    // within that window shows the old cached data instead of the saved values.
+    const updateAndSync = useCallback(
+      async (updates: UpdateStorageLocationInput) => {
+        const updated = await updateStorageLocation(location.id, updates)
+        if (updated) {
+          queryClient.setQueryData<StorageLocation[]>(
+            queryKeys.storageLocations(projectId),
+            (prev) => (prev ?? []).map((l) => (l.id === location.id ? updated : l))
+          )
+        }
+        return updated
+      },
+      [location.id, projectId, queryClient]
+    )
 
     // Address state
     const [addressStreet, setAddressStreet] = useState(location.address_street ?? '')
@@ -107,6 +127,7 @@ export const LagerplatzCard = forwardRef<LagerplatzCardRef, LagerplatzCardProps>
     const [addressCity, setAddressCity] = useState(location.address_city ?? '')
     const addressSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
     const mapMoveSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+    const pendingMapSaveRef = useRef<{ lat: number; lng: number; zoom: number } | null>(null)
 
     // Map + marker
     const [markerPosition, setMarkerPosition] = useState<{ lat: number; lng: number } | null>(
@@ -145,12 +166,34 @@ export const LagerplatzCard = forwardRef<LagerplatzCardRef, LagerplatzCardProps>
       notifyState(isDrawing, strokes.length, !!screenshotDataUrl)
     }, [isDrawing, strokes.length, screenshotDataUrl, notifyState])
 
-    // Cleanup map-move save timer on unmount
+    // Flush pending map-position save on unmount and update cache.
+    // Captures queryClient and projectId directly — both are stable references.
     useEffect(() => {
+      const locationId = location.id
       return () => {
-        if (mapMoveSaveTimerRef.current) clearTimeout(mapMoveSaveTimerRef.current)
+        if (mapMoveSaveTimerRef.current) {
+          clearTimeout(mapMoveSaveTimerRef.current)
+          mapMoveSaveTimerRef.current = null
+        }
+        const pending = pendingMapSaveRef.current
+        if (pending) {
+          pendingMapSaveRef.current = null
+          updateStorageLocation(locationId, {
+            map_center_lat: pending.lat,
+            map_center_lng: pending.lng,
+            map_zoom: pending.zoom,
+          }).then((updated) => {
+            if (updated) {
+              queryClient.setQueryData<StorageLocation[]>(
+                queryKeys.storageLocations(projectId),
+                (prev) => (prev ?? []).map((l) => (l.id === locationId ? updated : l))
+              )
+            }
+          })
+        }
       }
-    }, [])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [location.id])
 
     // Sync when location.id changes
     useEffect(() => {
@@ -188,7 +231,8 @@ export const LagerplatzCard = forwardRef<LagerplatzCardRef, LagerplatzCardProps>
       (street: string, number: string, zip: string, city: string) => {
         if (addressSaveTimerRef.current) clearTimeout(addressSaveTimerRef.current)
         addressSaveTimerRef.current = setTimeout(async () => {
-          await updateStorageLocation(location.id, {
+          addressSaveTimerRef.current = null
+          await updateAndSync({
             address_street: street.trim() || null,
             address_number: number.trim() || null,
             address_zip: zip.trim() || null,
@@ -196,7 +240,7 @@ export const LagerplatzCard = forwardRef<LagerplatzCardRef, LagerplatzCardProps>
           })
         }, 800)
       },
-      [location.id]
+      [updateAndSync]
     )
 
     const handleAddressPartChange = useCallback(
@@ -235,7 +279,21 @@ export const LagerplatzCard = forwardRef<LagerplatzCardRef, LagerplatzCardProps>
           const [lng, lat] = data.features[0].center as [number, number]
           setMarkerPosition({ lat, lng })
           mapRef.current?.flyTo(lat, lng)
-          await updateStorageLocation(location.id, { map_center_lat: lat, map_center_lng: lng })
+          // Save both coordinates and address text immediately (not just coordinates)
+          await Promise.all([
+            updateAndSync({ map_center_lat: lat, map_center_lng: lng }),
+            updateAndSync({
+              address_street: addressStreet.trim() || null,
+              address_number: addressNumber.trim() || null,
+              address_zip: addressZip.trim() || null,
+              address_city: addressCity.trim() || null,
+            }),
+          ])
+          // Cancel any pending debounce timer since we just saved
+          if (addressSaveTimerRef.current) {
+            clearTimeout(addressSaveTimerRef.current)
+            addressSaveTimerRef.current = null
+          }
         } else {
           toast.error('Adresse nicht gefunden.')
         }
@@ -244,13 +302,13 @@ export const LagerplatzCard = forwardRef<LagerplatzCardRef, LagerplatzCardProps>
       } finally {
         setIsGeocoding(false)
       }
-    }, [addressStreet, addressNumber, addressZip, addressCity, mapboxToken, location.id])
+    }, [addressStreet, addressNumber, addressZip, addressCity, mapboxToken, updateAndSync])
 
     // Reverse geocoding — map click → fill address fields
     const handleMapClick = useCallback(async (lat: number, lng: number) => {
       if (!mapboxToken) return
       setMarkerPosition({ lat, lng })
-      await updateStorageLocation(location.id, { map_center_lat: lat, map_center_lng: lng })
+      await updateAndSync({ map_center_lat: lat, map_center_lng: lng })
 
       try {
         const res = await fetch(
@@ -277,38 +335,42 @@ export const LagerplatzCard = forwardRef<LagerplatzCardRef, LagerplatzCardProps>
       } catch {
         // Reverse geocoding ist best-effort — kein Toast bei Fehler
       }
-    }, [mapboxToken, location.id, scheduleAddressSave])
+    }, [mapboxToken, updateAndSync, scheduleAddressSave])
 
     const handleMapMove = useCallback(
       (center: { lat: number; lng: number }, mapZoom: number) => {
+        const rounded = Math.round(mapZoom)
+        pendingMapSaveRef.current = { lat: center.lat, lng: center.lng, zoom: rounded }
         if (mapMoveSaveTimerRef.current) clearTimeout(mapMoveSaveTimerRef.current)
         mapMoveSaveTimerRef.current = setTimeout(() => {
-          updateStorageLocation(location.id, {
+          mapMoveSaveTimerRef.current = null
+          pendingMapSaveRef.current = null
+          updateAndSync({
             map_center_lat: center.lat,
             map_center_lng: center.lng,
-            map_zoom: Math.round(mapZoom),
+            map_zoom: rounded,
           })
         }, 3000)
       },
-      [location.id]
+      [updateAndSync]
     )
 
     const handleUpdateField = useCallback(
       async (field: string, value: string | null) => {
-        const updated = await updateStorageLocation(location.id, { [field]: value })
+        const updated = await updateAndSync({ [field]: value })
         if (!updated) toast.error('Speichern fehlgeschlagen.')
       },
-      [location.id]
+      [updateAndSync]
     )
 
     const handleContactsChange = useCallback(
       async (contacts: ContactSnapshot[]) => {
         setSelectedContacts(contacts)
-        await updateStorageLocation(location.id, {
+        await updateAndSync({
           contacts_json: contacts.length > 0 ? JSON.stringify(contacts) : null,
         })
       },
-      [location.id]
+      [updateAndSync]
     )
 
     const handleScreenshot = useCallback(async () => {
@@ -396,20 +458,20 @@ export const LagerplatzCard = forwardRef<LagerplatzCardRef, LagerplatzCardProps>
     const handleUndo = useCallback(() => {
       setStrokes((prev) => {
         const next = prev.slice(0, -1)
-        updateStorageLocation(location.id, { drawing_data: next.length > 0 ? next : null })
+        updateAndSync({ drawing_data: next.length > 0 ? next : null })
         return next
       })
-    }, [location.id])
+    }, [updateAndSync])
 
     const handleStrokeComplete = useCallback(
       (stroke: Stroke) => {
         setStrokes((prev) => {
           const next = [...prev, stroke]
-          updateStorageLocation(location.id, { drawing_data: next })
+          updateAndSync({ drawing_data: next })
           return next
         })
       },
-      [location.id]
+      [updateAndSync]
     )
 
     const handlePrint = useCallback(() => {

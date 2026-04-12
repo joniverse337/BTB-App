@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createAuthenticatedRoute, parseJsonBody } from '@/lib/api-utils'
 import { isMutationRateLimited } from '@/lib/rate-limit'
+import { validateCsrfToken } from '@/lib/csrf'
 import { z } from 'zod'
 
 // Erlaubt nur exakt: https://[project].supabase.co/storage/v1/object/public/company-logos/[uuid]/logo.(png|jpg|jpeg)
@@ -21,6 +22,10 @@ const updateCompanySchema = z.object({
 type UpdateCompanyData = z.infer<typeof updateCompanySchema>
 
 export const POST = createAuthenticatedRoute(async (request, { user, serviceClient }) => {
+  // CSRF protection
+  const csrfError = validateCsrfToken(request)
+  if (csrfError) return csrfError
+
   if (await isMutationRateLimited(user.id)) {
     return NextResponse.json(
       { error: 'Zu viele Anfragen. Bitte kurz warten.' },

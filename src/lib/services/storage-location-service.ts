@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase'
+import { logger } from '@/lib/logger'
 import type {
   StorageLocation,
   CreateStorageLocationInput,
@@ -26,7 +27,7 @@ export async function fetchStorageLocations(projectId: string): Promise<StorageL
     .limit(100)
 
   if (error) {
-    console.error('fetchStorageLocations error:', error.message)
+    logger.error('storageLocations.fetch', 'Lagerplaetze konnten nicht geladen werden')
     return []
   }
 
@@ -44,7 +45,7 @@ export async function createStorageLocation(
 ): Promise<StorageLocation | null> {
   const parsed = createStorageLocationSchema.safeParse(input)
   if (!parsed.success) {
-    console.error('createStorageLocation validation error:', parsed.error.flatten())
+    logger.warn('storageLocations.create', 'Validierung fehlgeschlagen')
     return null
   }
 
@@ -56,7 +57,7 @@ export async function createStorageLocation(
     .single()
 
   if (error) {
-    console.error('createStorageLocation error:', error.message)
+    logger.error('storageLocations.create', 'Lagerplatz konnte nicht erstellt werden')
     return null
   }
 
@@ -75,7 +76,7 @@ export async function updateStorageLocation(
 ): Promise<StorageLocation | null> {
   const parsed = updateStorageLocationSchema.safeParse(input)
   if (!parsed.success) {
-    console.error('updateStorageLocation validation error:', parsed.error.flatten())
+    logger.warn('storageLocations.update', 'Validierung fehlgeschlagen')
     return null
   }
 
@@ -88,7 +89,7 @@ export async function updateStorageLocation(
     .single()
 
   if (error) {
-    console.error('updateStorageLocation error:', error.message)
+    logger.error('storageLocations.update', 'Lagerplatz konnte nicht aktualisiert werden')
     return null
   }
 
@@ -110,7 +111,7 @@ export async function clearLocationScreenshot(id: string): Promise<boolean> {
     .eq('id', id)
 
   if (error) {
-    console.error('clearLocationScreenshot error:', error.message)
+    logger.error('storageLocations.clearScreenshot', 'Screenshot konnte nicht geloescht werden')
     return false
   }
   return true
@@ -150,7 +151,7 @@ export async function deleteStorageLocation(id: string): Promise<boolean> {
       }
     } catch (e) {
       // Screenshot cleanup is best-effort, don't block deletion
-      console.error('Screenshot cleanup error:', e)
+      logger.warn('storageLocations.delete', 'Screenshot-Cleanup fehlgeschlagen (best-effort)')
     }
   }
 
@@ -161,7 +162,7 @@ export async function deleteStorageLocation(id: string): Promise<boolean> {
     .eq('id', id)
 
   if (error) {
-    console.error('deleteStorageLocation error:', error.message)
+    logger.error('storageLocations.delete', 'Lagerplatz konnte nicht geloescht werden')
     return false
   }
 

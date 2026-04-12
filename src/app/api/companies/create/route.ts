@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { createAuthenticatedRoute, parseJsonBody } from '@/lib/api-utils'
 import { createCompanySchema, type CreateCompanyData } from '@/lib/validations/company'
 import { isMutationRateLimited } from '@/lib/rate-limit'
+import { validateCsrfToken } from '@/lib/csrf'
 
 function generateCompanyCode(): string {
   const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'
@@ -14,6 +15,10 @@ function generateCompanyCode(): string {
 }
 
 export const POST = createAuthenticatedRoute(async (request, { user, serviceClient }) => {
+  // CSRF protection
+  const csrfError = validateCsrfToken(request)
+  if (csrfError) return csrfError
+
   if (await isMutationRateLimited(user.id)) {
     return NextResponse.json(
       { error: 'Zu viele Anfragen. Bitte kurz warten.' },

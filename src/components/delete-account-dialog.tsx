@@ -16,6 +16,7 @@ import { Label } from '@/components/ui/label'
 import { createClient } from '@/lib/supabase'
 import { FormAlert } from '@/components/form-alert'
 import { useQueryClient } from '@tanstack/react-query'
+import { csrfHeaders } from '@/hooks/use-csrf-token'
 
 interface DeleteAccountDialogProps {
   open: boolean
@@ -45,7 +46,7 @@ export function DeleteAccountDialog({ open, onOpenChange }: DeleteAccountDialogP
     setErrorMessage(null)
 
     try {
-      const res = await fetch('/api/account/delete', { method: 'POST' })
+      const res = await fetch('/api/account/delete', { method: 'POST', headers: csrfHeaders() })
 
       if (res.status === 401) {
         router.push('/login')

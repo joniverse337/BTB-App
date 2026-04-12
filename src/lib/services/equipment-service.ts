@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase'
+import { logger } from '@/lib/logger'
 import type {
   EquipmentItem,
   EquipmentStatus,
@@ -28,7 +29,7 @@ export async function fetchEquipmentItems(projectId: string): Promise<EquipmentI
     .limit(500)
 
   if (error) {
-    console.error('fetchEquipmentItems error:', error.message)
+    logger.error('equipment.fetch', 'Geraete konnten nicht geladen werden')
     return []
   }
 
@@ -46,7 +47,7 @@ export async function createEquipmentItem(
 ): Promise<EquipmentItem | null> {
   const parsed = createEquipmentSchema.safeParse(input)
   if (!parsed.success) {
-    console.error('createEquipmentItem validation error:', parsed.error.flatten())
+    logger.warn('equipment.create', 'Validierung fehlgeschlagen')
     return null
   }
 
@@ -58,7 +59,7 @@ export async function createEquipmentItem(
     .single()
 
   if (error) {
-    console.error('createEquipmentItem error:', error.message)
+    logger.error('equipment.create', 'Geraet konnte nicht erstellt werden')
     return null
   }
 
@@ -77,7 +78,7 @@ export async function updateEquipmentItem(
 ): Promise<EquipmentItem | null> {
   const parsed = updateEquipmentSchema.safeParse(input)
   if (!parsed.success) {
-    console.error('updateEquipmentItem validation error:', parsed.error.flatten())
+    logger.warn('equipment.update', 'Validierung fehlgeschlagen')
     return null
   }
 
@@ -90,7 +91,7 @@ export async function updateEquipmentItem(
     .single()
 
   if (error) {
-    console.error('updateEquipmentItem error:', error.message)
+    logger.error('equipment.update', 'Geraet konnte nicht aktualisiert werden')
     return null
   }
 
@@ -110,7 +111,7 @@ export async function changeEquipmentStatus(
   targetStatus: EquipmentStatus
 ): Promise<EquipmentItem | null> {
   if (!isValidTransition(currentStatus, targetStatus)) {
-    console.error(`Invalid status transition: ${currentStatus} → ${targetStatus}`)
+    logger.warn('equipment.statusChange', 'Ungueltiger Status-Uebergang')
     return null
   }
 
@@ -124,7 +125,7 @@ export async function changeEquipmentStatus(
     .single()
 
   if (!existing) {
-    console.error('changeEquipmentStatus: item not found')
+    logger.warn('equipment.statusChange', 'Geraet nicht gefunden')
     return null
   }
 
@@ -152,7 +153,7 @@ export async function changeEquipmentStatus(
     .single()
 
   if (error) {
-    console.error('changeEquipmentStatus error:', error.message)
+    logger.error('equipment.statusChange', 'Status konnte nicht geaendert werden')
     return null
   }
 
@@ -174,7 +175,7 @@ export async function deleteEquipmentItem(id: string): Promise<boolean> {
     .eq('id', id)
 
   if (error) {
-    console.error('deleteEquipmentItem error:', error.message)
+    logger.error('equipment.delete', 'Geraet konnte nicht geloescht werden')
     return false
   }
 

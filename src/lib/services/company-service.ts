@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase'
+import { csrfHeaders } from '@/hooks/use-csrf-token'
 
 export interface Company {
   id: string
@@ -46,7 +47,7 @@ export async function updateCompanyFields(
 ): Promise<void> {
   const response = await fetch('/api/companies/update', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: csrfHeaders({ 'Content-Type': 'application/json' }),
     body: JSON.stringify(fields),
   })
 

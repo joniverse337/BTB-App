@@ -1,6 +1,7 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 import { isAuthRateLimited } from '@/lib/rate-limit'
+import { CSRF_COOKIE_NAME, generateCsrfToken } from '@/lib/csrf'
 
 function generateNonce(): string {
   const array = new Uint8Array(16)
@@ -121,6 +122,16 @@ export async function middleware(request: NextRequest) {
     const response = NextResponse.redirect(new URL('/login', request.url))
     response.headers.set('Content-Security-Policy', csp)
     return response
+  }
+
+  // CSRF-Cookie setzen (nur wenn noch nicht vorhanden)
+  if (!request.cookies.get(CSRF_COOKIE_NAME)) {
+    supabaseResponse.cookies.set(CSRF_COOKIE_NAME, generateCsrfToken(), {
+      httpOnly: false, // Client muss den Wert lesen können
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
+      path: '/',
+    })
   }
 
   // CSP nach Supabase-Verarbeitung setzen — setAll kann supabaseResponse ersetzt haben

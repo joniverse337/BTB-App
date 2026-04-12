@@ -1,7 +1,12 @@
 import { NextResponse } from 'next/server'
 import { createAuthenticatedRoute } from '@/lib/api-utils'
+import { validateCsrfToken } from '@/lib/csrf'
 
 export const POST = createAuthenticatedRoute(async (_request, { user, serviceClient }) => {
+  // CSRF protection
+  const csrfError = validateCsrfToken(_request)
+  if (csrfError) return csrfError
+
   // 1. Check if user has a company
   const { data: profile, error: profileError } = await serviceClient
     .from('profiles')

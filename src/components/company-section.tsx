@@ -44,6 +44,7 @@ import {
 import { toast } from 'sonner'
 import { createClient } from '@/lib/supabase'
 import { FormAlert } from '@/components/form-alert'
+import { csrfHeaders } from '@/hooks/use-csrf-token'
 
 interface Company {
   id: string
@@ -126,7 +127,7 @@ export function CompanySection() {
     try {
       const response = await fetch('/api/companies/update', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: csrfHeaders({ 'Content-Type': 'application/json' }),
         body: JSON.stringify(fields),
       })
       if (!response.ok) {
@@ -247,7 +248,7 @@ export function CompanySection() {
     try {
       const response = await fetch('/api/companies/create', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: csrfHeaders({ 'Content-Type': 'application/json' }),
         body: JSON.stringify(data),
       })
 
@@ -277,7 +278,7 @@ export function CompanySection() {
 
           await fetch('/api/companies/update', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: csrfHeaders({ 'Content-Type': 'application/json' }),
             body: JSON.stringify({ logo_url: urlData.publicUrl }),
           })
         }
@@ -332,7 +333,7 @@ export function CompanySection() {
     try {
       const response = await fetch('/api/companies/leave', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: csrfHeaders({ 'Content-Type': 'application/json' }),
       })
 
       if (!response.ok) {

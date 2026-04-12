@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { z } from 'zod'
 import { createAuthenticatedRoute } from '@/lib/api-utils'
+import { logger } from '@/lib/logger'
 
 const dateSchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Ungültiges Datumsformat (YYYY-MM-DD)')
 
@@ -125,7 +126,7 @@ export const GET = createAuthenticatedRoute(async (request) => {
 
     return NextResponse.json({ temp, witterung })
   } catch (err) {
-    console.error('Weather API Fehler:', err)
+    logger.error('weather.fetch', 'Wetterdaten konnten nicht abgerufen werden')
     return NextResponse.json({ error: 'Wetterdaten konnten nicht geladen werden' }, { status: 500 })
   }
 })

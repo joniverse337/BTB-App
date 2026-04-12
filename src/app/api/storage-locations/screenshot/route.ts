@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { createAuthenticatedRoute, parseJsonBody } from '@/lib/api-utils'
 import { uploadScreenshotSchema, type UploadScreenshotInput } from '@/lib/validations/storage-location'
 import { isScreenshotRateLimited } from '@/lib/rate-limit'
+import { logger } from '@/lib/logger'
 
 /**
  * POST /api/storage-locations/screenshot
@@ -92,7 +93,7 @@ export const POST = createAuthenticatedRoute(async (request, { user, supabase, s
     })
 
   if (uploadError) {
-    console.error('Screenshot upload error:', uploadError)
+    logger.error('screenshot.upload', 'Upload zu Supabase Storage fehlgeschlagen')
     return NextResponse.json(
       { error: 'Fehler beim Hochladen des Screenshots.' },
       { status: 500 }
@@ -114,7 +115,7 @@ export const POST = createAuthenticatedRoute(async (request, { user, supabase, s
     .eq('id', storage_location_id)
 
   if (updateError) {
-    console.error('Screenshot URL update error:', updateError.message)
+    logger.error('screenshot.dbUpdate', 'Screenshot-URL konnte nicht in DB gespeichert werden')
     return NextResponse.json(
       { error: 'Screenshot gespeichert, aber Datenbankupdate fehlgeschlagen.' },
       { status: 500 }

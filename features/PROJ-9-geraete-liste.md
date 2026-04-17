@@ -1,8 +1,12 @@
 # PROJ-9: Gerätebedarf
 
-## Status: In Review
+## Status: Deployed
 **Created:** 2026-04-08
-**Last Updated:** 2026-04-11
+**Last Updated:** 2026-04-17
+
+## Deployment
+**Deployed:** 2026-04-17
+**Commits:** feat, fix, security (PROJ-9) — Citrix PATCH-Fixes, IDOR-Schutz, Datum-Automatik
 
 ## Dependencies
 

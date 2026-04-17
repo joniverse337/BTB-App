@@ -111,15 +111,15 @@ export async function changeEquipmentStatus(
   currentStatus: EquipmentStatus,
   targetStatus: EquipmentStatus,
   nextSortOrder: number
-): Promise<EquipmentItem | null> {
+): Promise<boolean> {
   if (!isValidTransition(currentStatus, targetStatus)) {
     logger.warn('equipment.statusChange', 'Ungueltiger Status-Uebergang')
-    return null
+    return false
   }
 
   const supabase = createClient()
 
-  const { data, error } = await supabase
+  const { error } = await supabase
     .from('equipment_items')
     .update({
       status: targetStatus,
@@ -127,15 +127,13 @@ export async function changeEquipmentStatus(
       sort_order: nextSortOrder,
     })
     .eq('id', id)
-    .select()
-    .single()
 
   if (error) {
     logger.error('equipment.statusChange', 'Status konnte nicht geaendert werden')
-    return null
+    return false
   }
 
-  return data as EquipmentItem
+  return true
 }
 
 // ── Delete ──────────────────────────────────────────────────

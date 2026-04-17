@@ -145,12 +145,8 @@ export function GeraeteView({ projectId, project, companyName, printLagerplaetze
         (prev ?? []).map((item) => (item.id === id ? optimistic : item))
       )
 
-      const result = await changeEquipmentStatus(id, from, to, nextSortOrder)
-      if (result) {
-        queryClient.setQueryData<EquipmentItem[]>(queryKeys.equipment(projectId), (prev) =>
-          (prev ?? []).map((item) => (item.id === id ? result : item))
-        )
-      } else {
+      const ok = await changeEquipmentStatus(id, from, to, nextSortOrder)
+      if (!ok) {
         // Revert
         queryClient.setQueryData<EquipmentItem[]>(queryKeys.equipment(projectId), (prev) =>
           (prev ?? []).map((item) => (item.id === id ? (cached.find((c) => c.id === id) ?? item) : item))

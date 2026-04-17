@@ -680,31 +680,50 @@ export function GeraeteCard({
           marginBottom: '8px',
         }}
       >
-        <div
-          style={{
-            fontFamily: 'var(--font-inter), sans-serif',
-            fontWeight: 800,
-            fontSize: '14pt',
-            color: headerBg,
-            textTransform: 'uppercase',
-            letterSpacing: '0.5px',
-            marginBottom: '4px',
-          }}
-        >
-          {STATUS_LABELS[status]}
-        </div>
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px', fontSize: '7.5pt', color: '#555', alignItems: 'center' }}>
-          <div>
-            <span style={{ fontWeight: 600, color: '#333' }}>Bauvorhaben: </span>
-            {projectInfo.name}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: '8px' }}>
+          <div
+            style={{
+              fontFamily: 'var(--font-inter), sans-serif',
+              fontWeight: 800,
+              fontSize: '14pt',
+              color: headerBg,
+              textTransform: 'uppercase',
+              letterSpacing: '0.5px',
+              flexShrink: 0,
+            }}
+          >
+            {STATUS_LABELS[status]}
           </div>
-          {projectInfo.kostenstelle && (
-            <div>
-              <span style={{ fontWeight: 600, color: '#333' }}>Kostenstelle: </span>
-              {projectInfo.kostenstelle}
-            </div>
-          )}
-          {(projectContacts || (selectedContacts && selectedContacts.length > 0)) && (
+          <div style={{ textAlign: 'right', minWidth: 0 }}>
+            <span
+              style={{
+                fontFamily: 'var(--font-inter), sans-serif',
+                fontWeight: 800,
+                fontSize: '14pt',
+                color: headerBg,
+                textTransform: 'uppercase',
+                letterSpacing: '0.5px',
+              }}
+            >
+              {projectInfo.name}
+            </span>
+            {projectInfo.kostenstelle && (
+              <span
+                style={{
+                  fontFamily: 'var(--font-ibm-plex-sans), sans-serif',
+                  fontSize: '8pt',
+                  color: '#666',
+                  marginLeft: '6px',
+                  fontWeight: 500,
+                }}
+              >
+                KST {projectInfo.kostenstelle}
+              </span>
+            )}
+          </div>
+        </div>
+        {(projectContacts || (selectedContacts && selectedContacts.length > 0)) && (
+          <div style={{ marginTop: '4px' }}>
             <ContactPickerHeader
               selected={selectedContacts ?? []}
               available={projectContacts ?? []}
@@ -712,8 +731,8 @@ export function GeraeteCard({
               onChange={onContactsChange ?? (() => {})}
               readonly={!onContactsChange}
             />
-          )}
-        </div>
+          </div>
+        )}
       </div>
 
       {/* Equipment Table */}

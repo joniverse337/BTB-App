@@ -155,13 +155,13 @@ export function GeraeteView({ projectId, project, companyName, printLagerplaetze
         // Cancel again: setQueryData re-render may schedule a new background refetch
         await queryClient.cancelQueries({ queryKey: queryKeys.equipment(projectId) })
 
-        const ok = await changeEquipmentStatus(id, from, to, nextSortOrder)
-        if (!ok) {
+        const result = await changeEquipmentStatus(id, from, to, nextSortOrder)
+        if (!result.ok) {
           // Revert on failure
           queryClient.setQueryData<EquipmentItem[]>(queryKeys.equipment(projectId), (prev) =>
             (prev ?? []).map((item) => (item.id === id ? (cached.find((c) => c.id === id) ?? item) : item))
           )
-          toast.error('Statuswechsel fehlgeschlagen.')
+          toast.error(`Statuswechsel fehlgeschlagen: ${result.reason}`)
         } else {
           // Nach erfolgreichem DB-Update Cache mit DB synchronisieren — verhindert, dass
           // ein späterer Refetch (z.B. durch onBlur-Fehler) den optimistischen Stand überschreibt

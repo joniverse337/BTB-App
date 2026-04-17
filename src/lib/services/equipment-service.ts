@@ -111,10 +111,10 @@ export async function changeEquipmentStatus(
   currentStatus: EquipmentStatus,
   targetStatus: EquipmentStatus,
   nextSortOrder: number
-): Promise<boolean> {
+): Promise<{ ok: true } | { ok: false; reason: string }> {
   if (!isValidTransition(currentStatus, targetStatus)) {
     logger.warn('equipment.statusChange', 'Ungueltiger Status-Uebergang')
-    return false
+    return { ok: false, reason: `Ungültiger Übergang: ${currentStatus} → ${targetStatus}` }
   }
 
   const supabase = createClient()
@@ -130,10 +130,10 @@ export async function changeEquipmentStatus(
 
   if (error) {
     logger.error('equipment.statusChange', 'Status konnte nicht geaendert werden')
-    return false
+    return { ok: false, reason: `DB-Fehler: ${error.message} (Code: ${error.code})` }
   }
 
-  return true
+  return { ok: true }
 }
 
 // ── Delete ──────────────────────────────────────────────────

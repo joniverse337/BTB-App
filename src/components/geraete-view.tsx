@@ -88,10 +88,12 @@ export function GeraeteView({ projectId, project, companyName, printLagerplaetze
     await supabase.from('project_settings').update({ [field]: contacts.length ? JSON.stringify(contacts) : null }).eq('project_id', projectId)
   }, [projectId])
 
-  // Filter items by status
-  const bedarfItems = items.filter((i) => i.status === 'bedarf')
-  const baustelleItems = items.filter((i) => i.status === 'baustelle')
-  const freiItems = items.filter((i) => i.status === 'frei')
+  // Filter items by status, alphabetisch nach Name sortiert (null/leer ans Ende)
+  const byName = (a: EquipmentItem, b: EquipmentItem) =>
+    (a.name ?? '').localeCompare(b.name ?? '', 'de', { sensitivity: 'base' })
+  const bedarfItems = items.filter((i) => i.status === 'bedarf').sort(byName)
+  const baustelleItems = items.filter((i) => i.status === 'baustelle').sort(byName)
+  const freiItems = items.filter((i) => i.status === 'frei').sort(byName)
 
   // Add new equipment for a given status
   const handleAddEquipment = useCallback(async (status: EquipmentStatus) => {

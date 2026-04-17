@@ -126,6 +126,10 @@ export function GeraeteView({ projectId, project, companyName, printLagerplaetze
   // Change status — single DB call; projectId and sort_order come from cache
   const handleStatusChange = useCallback(
     async (id: string, from: EquipmentStatus, to: EquipmentStatus) => {
+      // Cancel any in-flight refetches — prevents race condition where a background
+      // refetch returns stale DB data and overwrites the optimistic update
+      await queryClient.cancelQueries({ queryKey: queryKeys.equipment(projectId) })
+
       const cached = queryClient.getQueryData<EquipmentItem[]>(queryKeys.equipment(projectId)) ?? []
       const maxOrder = cached.filter((i) => i.status === to).reduce((m, i) => Math.max(m, i.sort_order), -1)
       const nextSortOrder = maxOrder + 1

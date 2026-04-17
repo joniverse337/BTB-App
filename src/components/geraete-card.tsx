@@ -351,13 +351,18 @@ function CellInput({
     )
   }
 
-  // Datum bleibt als input[type=date]
+  // Datum: sofort onChange speichern — Datums-Picker lösen kein zuverlässiges
+  // onBlur aus (bes. in Citrix), daher wird bei jeder Auswahl direkt gespeichert.
   if (type === 'date') {
     return (
       <input
         type="date"
         value={localValue}
-        onChange={(e) => setLocalValue(e.target.value)}
+        onChange={(e) => {
+          const val = e.target.value
+          setLocalValue(val)
+          onSave(val === '' ? null : val)
+        }}
         onBlur={handleBlur}
         style={INPUT_STYLE}
         aria-label={ariaLabel}

@@ -2,11 +2,15 @@ import { NextResponse } from 'next/server'
 import { createAuthenticatedRoute, parseJsonBody } from '@/lib/api-utils'
 import { joinCompanySchema, type JoinCompanyData } from '@/lib/validations/company'
 import { isJoinRateLimited } from '@/lib/rate-limit'
+import { validateCsrfToken } from '@/lib/csrf'
 
 // Generic error message to prevent enumeration attacks
 const INVALID_CODE_ERROR = 'Dieser Code ist nicht gültig.'
 
 export const POST = createAuthenticatedRoute(async (request, { user, serviceClient }) => {
+  const csrfError = validateCsrfToken(request)
+  if (csrfError) return csrfError
+
   // 1. Rate limit check (per userId)
   if (await isJoinRateLimited(user.id)) {
     return NextResponse.json(

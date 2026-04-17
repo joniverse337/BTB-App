@@ -113,6 +113,7 @@ export const POST = createAuthenticatedRoute(async (request, { user, supabase, s
     .from('storage_locations')
     .update({ screenshot_url: publicUrl })
     .eq('id', storage_location_id)
+    .eq('project_id', project_id)
 
   if (updateError) {
     logger.error('screenshot.dbUpdate', 'Screenshot-URL konnte nicht in DB gespeichert werden')

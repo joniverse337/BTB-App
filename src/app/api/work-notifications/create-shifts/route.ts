@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createAuthenticatedRoute, parseJsonBody } from '@/lib/api-utils'
 import { isMutationRateLimited } from '@/lib/rate-limit'
+import { validateCsrfToken } from '@/lib/csrf'
 import { z } from 'zod'
 
 const requestSchema = z.object({
@@ -14,6 +15,9 @@ const requestSchema = z.object({
 type CreateShiftsData = z.infer<typeof requestSchema>
 
 export const POST = createAuthenticatedRoute(async (request, { user, supabase, serviceClient }) => {
+  const csrfError = validateCsrfToken(request)
+  if (csrfError) return csrfError
+
   if (await isMutationRateLimited(user.id)) {
     return NextResponse.json(
       { error: 'Zu viele Anfragen. Bitte kurz warten.' },

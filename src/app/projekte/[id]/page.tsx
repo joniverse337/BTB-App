@@ -424,16 +424,23 @@ export default function ProjectDetailPage() {
   ) => {
     if (!SHIFT_ALLOWED_FIELDS.has(field)) return
 
+    const previous = queryClient.getQueryData<ShiftWithDetails[]>(queryKeys.shifts(projectId))
     queryClient.setQueryData<ShiftWithDetails[]>(queryKeys.shifts(projectId), (prev) =>
       (prev ?? []).map((s) => (s.id === shiftId ? { ...s, [field]: value } : s))
     )
 
     try {
       const supabase = createClient()
-      await supabase
+      const { error } = await supabase
         .from('shifts')
         .update({ [field]: value })
         .eq('id', shiftId)
+
+      if (error) {
+        queryClient.setQueryData(queryKeys.shifts(projectId), previous)
+        toast.error('Änderung konnte nicht gespeichert werden.')
+        return
+      }
 
       // Sync worker/equipment hours when shift times change
       if (['beg', 'end', 'pau'].includes(field)) {
@@ -474,6 +481,7 @@ export default function ProjectDetailPage() {
         }
       }
     } catch {
+      queryClient.setQueryData(queryKeys.shifts(projectId), previous)
       toast.error('Änderung konnte nicht gespeichert werden.')
     }
   }
@@ -541,6 +549,7 @@ export default function ProjectDetailPage() {
   ) => {
     if (!WORKER_ALLOWED_FIELDS.has(field)) return
 
+    const previous = queryClient.getQueryData<ShiftWithDetails[]>(queryKeys.shifts(projectId))
     queryClient.setQueryData<ShiftWithDetails[]>(queryKeys.shifts(projectId), (prev) =>
       (prev ?? []).map((s) => ({
         ...s,
@@ -552,16 +561,23 @@ export default function ProjectDetailPage() {
 
     try {
       const supabase = createClient()
-      await supabase
+      const { error } = await supabase
         .from('shift_workers')
         .update({ [field]: value })
         .eq('id', workerId)
+
+      if (error) {
+        queryClient.setQueryData(queryKeys.shifts(projectId), previous)
+        toast.error('Änderung konnte nicht gespeichert werden.')
+      }
     } catch {
+      queryClient.setQueryData(queryKeys.shifts(projectId), previous)
       toast.error('Änderung konnte nicht gespeichert werden.')
     }
   }
 
   const handleDeleteWorker = async (workerId: string) => {
+    const previous = queryClient.getQueryData<ShiftWithDetails[]>(queryKeys.shifts(projectId))
     queryClient.setQueryData<ShiftWithDetails[]>(queryKeys.shifts(projectId), (prev) =>
       (prev ?? []).map((s) => ({
         ...s,
@@ -571,8 +587,13 @@ export default function ProjectDetailPage() {
 
     try {
       const supabase = createClient()
-      await supabase.from('shift_workers').delete().eq('id', workerId)
+      const { error } = await supabase.from('shift_workers').delete().eq('id', workerId)
+      if (error) {
+        queryClient.setQueryData(queryKeys.shifts(projectId), previous)
+        toast.error('Mitarbeiter konnte nicht gelöscht werden.')
+      }
     } catch {
+      queryClient.setQueryData(queryKeys.shifts(projectId), previous)
       toast.error('Mitarbeiter konnte nicht gelöscht werden.')
     }
   }
@@ -622,6 +643,7 @@ export default function ProjectDetailPage() {
   ) => {
     if (!EQUIPMENT_ALLOWED_FIELDS.has(field)) return
 
+    const previous = queryClient.getQueryData<ShiftWithDetails[]>(queryKeys.shifts(projectId))
     queryClient.setQueryData<ShiftWithDetails[]>(queryKeys.shifts(projectId), (prev) =>
       (prev ?? []).map((s) => ({
         ...s,
@@ -633,16 +655,23 @@ export default function ProjectDetailPage() {
 
     try {
       const supabase = createClient()
-      await supabase
+      const { error } = await supabase
         .from('shift_equipment')
         .update({ [field]: value })
         .eq('id', equipmentId)
+
+      if (error) {
+        queryClient.setQueryData(queryKeys.shifts(projectId), previous)
+        toast.error('Änderung konnte nicht gespeichert werden.')
+      }
     } catch {
+      queryClient.setQueryData(queryKeys.shifts(projectId), previous)
       toast.error('Änderung konnte nicht gespeichert werden.')
     }
   }
 
   const handleDeleteEquipment = async (equipmentId: string) => {
+    const previous = queryClient.getQueryData<ShiftWithDetails[]>(queryKeys.shifts(projectId))
     queryClient.setQueryData<ShiftWithDetails[]>(queryKeys.shifts(projectId), (prev) =>
       (prev ?? []).map((s) => ({
         ...s,
@@ -652,8 +681,13 @@ export default function ProjectDetailPage() {
 
     try {
       const supabase = createClient()
-      await supabase.from('shift_equipment').delete().eq('id', equipmentId)
+      const { error } = await supabase.from('shift_equipment').delete().eq('id', equipmentId)
+      if (error) {
+        queryClient.setQueryData(queryKeys.shifts(projectId), previous)
+        toast.error('Gerät konnte nicht gelöscht werden.')
+      }
     } catch {
+      queryClient.setQueryData(queryKeys.shifts(projectId), previous)
       toast.error('Gerät konnte nicht gelöscht werden.')
     }
   }

@@ -115,7 +115,8 @@ export async function changeEquipmentStatus(
   id: string,
   currentStatus: EquipmentStatus,
   targetStatus: EquipmentStatus,
-  nextSortOrder: number
+  nextSortOrder: number,
+  lieferdatum?: string
 ): Promise<{ ok: true } | { ok: false; reason: string }> {
   if (!isValidTransition(currentStatus, targetStatus)) {
     logger.warn('equipment.statusChange', 'Ungueltiger Status-Uebergang')
@@ -134,6 +135,7 @@ export async function changeEquipmentStatus(
         from: currentStatus,
         to: targetStatus,
         sort_order: nextSortOrder,
+        ...(lieferdatum !== undefined && { lieferdatum }),
       }),
     })
 

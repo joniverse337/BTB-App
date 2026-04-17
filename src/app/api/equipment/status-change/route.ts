@@ -8,6 +8,7 @@ const statusChangeSchema = z.object({
   from: z.enum(EQUIPMENT_STATUSES),
   to: z.enum(EQUIPMENT_STATUSES),
   sort_order: z.number().int(),
+  lieferdatum: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
 })
 
 type StatusChangeBody = z.infer<typeof statusChangeSchema>
@@ -23,7 +24,7 @@ export const POST = createAuthenticatedRoute(async (request, { serviceClient }) 
   const parsed = await parseJsonBody<StatusChangeBody>(request, statusChangeSchema)
   if (parsed instanceof NextResponse) return parsed
 
-  const { id, from, to, sort_order } = parsed
+  const { id, from, to, sort_order, lieferdatum } = parsed
 
   if (!isValidTransition(from, to)) {
     return NextResponse.json(
@@ -38,6 +39,7 @@ export const POST = createAuthenticatedRoute(async (request, { serviceClient }) 
       status: to,
       status_ts: Math.floor(Date.now() / 1000),
       sort_order,
+      ...(lieferdatum !== undefined && { lieferdatum }),
     })
     .eq('id', id)
     .select('id')

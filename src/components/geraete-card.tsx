@@ -436,16 +436,18 @@ function EquipmentRow({
           onSave={(v) => onUpdateField(item.id, 'lieferadresse', v)}
         />
       </td>
-      <td style={TD_STYLE}>
-        <CellInput
-          value={item.lieferdatum}
-          placeholder=""
-          editable={canEdit('lieferdatum')}
-          type={canEdit('lieferdatum') ? 'date' : 'text'}
-          onSave={(v) => onUpdateField(item.id, 'lieferdatum', v)}
-          ariaLabel={`Lieferdatum ${item.name || ''}`}
-        />
-      </td>
+      {status !== 'baustelle' && (
+        <td style={TD_STYLE}>
+          <CellInput
+            value={item.lieferdatum}
+            placeholder=""
+            editable={canEdit('lieferdatum')}
+            type={canEdit('lieferdatum') ? 'date' : 'text'}
+            onSave={(v) => onUpdateField(item.id, 'lieferdatum', v)}
+            ariaLabel={`Lieferdatum ${item.name || ''}`}
+          />
+        </td>
+      )}
       <td style={TD_STYLE}>
         <CellInput
           value={item.anmerkungen}
@@ -734,15 +736,17 @@ export function GeraeteCard({
         >
           <thead>
             <tr style={{ background: headerBg }}>
-              <th style={{ ...TH_STYLE, width: '22%' }}>Gerät</th>
+              <th style={{ ...TH_STYLE, width: status === 'baustelle' ? '26%' : '22%' }}>Gerät</th>
               <th style={{ ...TH_STYLE, width: '14%' }}>Nr.</th>
-              <th style={{ ...TH_STYLE, width: '20%' }}>
+              <th style={{ ...TH_STYLE, width: status === 'baustelle' ? '26%' : '20%' }}>
                 {status === 'baustelle' ? 'Standort' : status === 'frei' ? 'Abholort' : 'Lieferadresse'}
               </th>
-              <th style={{ ...TH_STYLE, width: '14%' }}>
-                {status === 'baustelle' ? 'Freimeldung vsl.' : status === 'frei' ? 'Freigemeldet seit' : 'Lieferdatum'}
-              </th>
-              <th style={{ ...TH_STYLE, width: '20%' }}>Anmerkungen</th>
+              {status !== 'baustelle' && (
+                <th style={{ ...TH_STYLE, width: '14%' }}>
+                  {status === 'frei' ? 'Freigemeldet seit' : 'Lieferdatum'}
+                </th>
+              )}
+              <th style={{ ...TH_STYLE, width: status === 'baustelle' ? '24%' : '20%' }}>Anmerkungen</th>
               <th style={{ ...TH_STYLE, width: '10%', borderRight: 'none' }} data-no-print="true">
                 Aktionen
               </th>
@@ -752,7 +756,7 @@ export function GeraeteCard({
             {items.length === 0 ? (
               <tr>
                 <td
-                  colSpan={6}
+                  colSpan={status === 'baustelle' ? 5 : 6}
                   style={{
                     ...TD_STYLE,
                     textAlign: 'center',

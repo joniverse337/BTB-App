@@ -99,10 +99,12 @@ export function GeraeteView({ projectId, project, companyName, printLagerplaetze
   const handleAddEquipment = useCallback(async (status: EquipmentStatus) => {
     const statusItems = items.filter((i) => i.status === status)
     const maxOrder = statusItems.reduce((max, i) => Math.max(max, i.sort_order), 0)
+    const today = new Date().toISOString().split('T')[0]
     const created = await createEquipmentItem({
       project_id: projectId,
       status,
       sort_order: maxOrder + 1,
+      lieferdatum: today,
     })
     if (created) {
       queryClient.setQueryData<EquipmentItem[]>(queryKeys.equipment(projectId), (prev) => [...(prev ?? []), created])
@@ -144,12 +146,17 @@ export function GeraeteView({ projectId, project, companyName, printLagerplaetze
         const maxOrder = cached.filter((i) => i.status === to).reduce((m, i) => Math.max(m, i.sort_order), -1)
         const nextSortOrder = maxOrder + 1
 
+        // Bei Übergang nach "frei" das heutige Datum als "Freigemeldet seit" setzen
+        const today = new Date().toISOString().split('T')[0]
+        const freimeldungDatum = to === 'frei' ? today : undefined
+
         // Optimistic update
         const optimistic: EquipmentItem = {
           ...(cached.find((i) => i.id === id)!),
           status: to,
           sort_order: nextSortOrder,
           status_ts: Math.floor(Date.now() / 1000),
+          ...(freimeldungDatum !== undefined && { lieferdatum: freimeldungDatum }),
         }
         queryClient.setQueryData<EquipmentItem[]>(queryKeys.equipment(projectId), (prev) =>
           (prev ?? []).map((item) => (item.id === id ? optimistic : item))
@@ -157,7 +164,7 @@ export function GeraeteView({ projectId, project, companyName, printLagerplaetze
         // Cancel again: setQueryData re-render may schedule a new background refetch
         await queryClient.cancelQueries({ queryKey: queryKeys.equipment(projectId) })
 
-        const result = await changeEquipmentStatus(id, from, to, nextSortOrder)
+        const result = await changeEquipmentStatus(id, from, to, nextSortOrder, freimeldungDatum)
         if (!result.ok) {
           // Revert on failure
           queryClient.setQueryData<EquipmentItem[]>(queryKeys.equipment(projectId), (prev) =>
@@ -190,6 +197,8 @@ export function GeraeteView({ projectId, project, companyName, printLagerplaetze
     }
   }, [deleteTarget, projectId, queryClient])
 
+  const printTitle = project.name ? `${new Date().toISOString().split('T')[0]} Gerätebedarf – ${project.name}` : `${new Date().toISOString().split('T')[0]} Gerätebedarf`
+
   // Print all 3 cards (+ Lagerplatz-Append wenn aktiviert)
   const handlePrint = useCallback(() => {
     ;[bedarfWrapperRef, baustelleWrapperRef, freiWrapperRef].forEach((ref) => {
@@ -197,10 +206,10 @@ export function GeraeteView({ projectId, project, companyName, printLagerplaetze
     })
     if (outerRef.current) delete outerRef.current.dataset.singlePrint
     const prevTitle = document.title
-    document.title = project.name ? `Gerätebedarf – ${project.name}` : 'Gerätebedarf'
+    document.title = printTitle
     window.print()
     window.addEventListener('afterprint', () => { document.title = prevTitle }, { once: true })
-  }, [project.name])
+  }, [printTitle])
 
   // Print a single card — Lagerplatz-Append ausblenden via data-single-print
   const handlePrintSingle = useCallback((wrapperRef: React.RefObject<HTMLDivElement | null>) => {
@@ -209,14 +218,14 @@ export function GeraeteView({ projectId, project, companyName, printLagerplaetze
     el.dataset.printOnly = 'true'
     if (outerRef.current) outerRef.current.dataset.singlePrint = 'true'
     const prevTitle = document.title
-    document.title = project.name ? `Gerätebedarf – ${project.name}` : 'Gerätebedarf'
+    document.title = printTitle
     window.print()
     window.addEventListener('afterprint', () => {
       document.title = prevTitle
       delete el.dataset.printOnly
       if (outerRef.current) delete outerRef.current.dataset.singlePrint
     }, { once: true })
-  }, [project.name])
+  }, [printTitle])
 
   // Project info for card headers
   const projectInfo = {

@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { z } from 'zod'
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { createServiceClient } from '@/lib/supabase'
@@ -72,7 +73,7 @@ export function createAuthenticatedRoute(handler: AuthenticatedHandler) {
  */
 export async function parseJsonBody<T>(
   request: Request,
-  schema: { safeParse: (data: unknown) => { success: boolean; data?: T; error?: { issues: { message: string }[] } } }
+  schema: z.ZodSchema<T>
 ): Promise<T | NextResponse> {
   let body: unknown
   try {

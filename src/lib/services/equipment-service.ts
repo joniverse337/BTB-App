@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase'
 import { logger } from '@/lib/logger'
+import { csrfHeaders } from '@/hooks/use-csrf-token'
 import type {
   EquipmentItem,
   EquipmentStatus,
@@ -86,7 +87,7 @@ export async function updateEquipmentItem(
   try {
     const res = await fetch('/api/equipment/update-field', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: csrfHeaders({ 'Content-Type': 'application/json' }),
       body: JSON.stringify({ id, fields: parsed.data }),
     })
 
@@ -129,7 +130,7 @@ export async function changeEquipmentStatus(
   try {
     const res = await fetch('/api/equipment/status-change', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: csrfHeaders({ 'Content-Type': 'application/json' }),
       body: JSON.stringify({
         id,
         to: targetStatus,

@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server'
 import { z } from 'zod'
 import { createAuthenticatedRoute, parseJsonBody } from '@/lib/api-utils'
+import { isMutationRateLimited } from '@/lib/rate-limit'
+import { validateCsrfToken } from '@/lib/csrf'
 import { updateEquipmentSchema } from '@/lib/validations/equipment'
 
 const requestSchema = z.object({
@@ -19,7 +21,14 @@ type UpdateFieldBody = z.infer<typeof requestSchema>
  * Sicherheit: Verwendet den RLS-enforced supabase-Client (User-Session).
  * RLS stellt sicher, dass nur Geräte der eigenen Firma bearbeitet werden können.
  */
-export const POST = createAuthenticatedRoute(async (request, { supabase }) => {
+export const POST = createAuthenticatedRoute(async (request, { user, supabase }) => {
+  const csrfError = validateCsrfToken(request)
+  if (csrfError) return csrfError
+
+  if (await isMutationRateLimited(user.id)) {
+    return NextResponse.json({ error: 'Zu viele Anfragen. Bitte kurz warten.' }, { status: 429 })
+  }
+
   const parsed = await parseJsonBody<UpdateFieldBody>(request, requestSchema)
   if (parsed instanceof NextResponse) return parsed
 

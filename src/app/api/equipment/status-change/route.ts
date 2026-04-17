@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server'
 import { z } from 'zod'
 import { createAuthenticatedRoute, parseJsonBody } from '@/lib/api-utils'
+import { isMutationRateLimited } from '@/lib/rate-limit'
+import { validateCsrfToken } from '@/lib/csrf'
 import { EQUIPMENT_STATUSES, isValidTransition } from '@/lib/validations/equipment'
 
 const statusChangeSchema = z.object({
@@ -23,7 +25,14 @@ type StatusChangeBody = z.infer<typeof statusChangeSchema>
  * Der aktuelle Status wird aus der DB gelesen (nicht vom Client übernommen),
  * um Transition-Bypässe zu verhindern.
  */
-export const POST = createAuthenticatedRoute(async (request, { supabase }) => {
+export const POST = createAuthenticatedRoute(async (request, { user, supabase }) => {
+  const csrfError = validateCsrfToken(request)
+  if (csrfError) return csrfError
+
+  if (await isMutationRateLimited(user.id)) {
+    return NextResponse.json({ error: 'Zu viele Anfragen. Bitte kurz warten.' }, { status: 429 })
+  }
+
   const parsed = await parseJsonBody<StatusChangeBody>(request, statusChangeSchema)
   if (parsed instanceof NextResponse) return parsed
 

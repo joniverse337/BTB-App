@@ -8,5 +8,6 @@ export function useEquipmentQuery(projectId: string | undefined) {
     queryFn: () => fetchEquipmentItems(projectId!),
     enabled: !!projectId,
     staleTime: 30_000,
+    refetchOnWindowFocus: false,
   })
 }

@@ -45,7 +45,7 @@ export const updateEquipmentSchema = z.object({
   lieferadresse: z.string().max(1000).nullable().optional(),
   lieferdatum: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Ungültiges Datumsformat').nullable().optional(),
   anmerkungen: z.string().max(2000).nullable().optional(),
-})
+}).strict()
 
 export type UpdateEquipmentInput = z.infer<typeof updateEquipmentSchema>
 
@@ -53,7 +53,7 @@ export type UpdateEquipmentInput = z.infer<typeof updateEquipmentSchema>
 export const changeStatusSchema = z.object({
   status: z.enum(EQUIPMENT_STATUSES),
   status_ts: z.number().int(),
-  sort_order: z.number().int(),
+  sort_order: z.number().int().min(0).max(1_000_000),
 })
 
 export type ChangeStatusInput = z.infer<typeof changeStatusSchema>

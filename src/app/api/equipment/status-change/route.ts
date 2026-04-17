@@ -5,9 +5,8 @@ import { EQUIPMENT_STATUSES, isValidTransition } from '@/lib/validations/equipme
 
 const statusChangeSchema = z.object({
   id: z.string().uuid(),
-  from: z.enum(EQUIPMENT_STATUSES),
   to: z.enum(EQUIPMENT_STATUSES),
-  sort_order: z.number().int(),
+  sort_order: z.number().int().min(0).max(1_000_000),
   lieferdatum: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
 })
 
@@ -18,22 +17,42 @@ type StatusChangeBody = z.infer<typeof statusChangeSchema>
  *
  * Führt den Statuswechsel server-seitig durch — notwendig für Citrix-Umgebungen,
  * wo PATCH-Requests durch den Proxy geblockt werden (nur GET/POST erlaubt).
- * Der Browser sendet POST, der Server macht den Supabase-PATCH direkt.
+ *
+ * Sicherheit: Verwendet den RLS-enforced supabase-Client (User-Session).
+ * RLS stellt sicher, dass nur Geräte der eigenen Firma bearbeitet werden können.
+ * Der aktuelle Status wird aus der DB gelesen (nicht vom Client übernommen),
+ * um Transition-Bypässe zu verhindern.
  */
-export const POST = createAuthenticatedRoute(async (request, { serviceClient }) => {
+export const POST = createAuthenticatedRoute(async (request, { supabase }) => {
   const parsed = await parseJsonBody<StatusChangeBody>(request, statusChangeSchema)
   if (parsed instanceof NextResponse) return parsed
 
-  const { id, from, to, sort_order, lieferdatum } = parsed
+  const { id, to, sort_order, lieferdatum } = parsed
 
-  if (!isValidTransition(from, to)) {
+  // Aktuellen Status aus DB lesen — verhindert, dass der Client einen falschen
+  // "from"-Wert sendet, um ungültige Transitionen zu erzwingen (TOCTOU-Schutz).
+  // RLS stellt gleichzeitig sicher, dass nur Geräte der eigenen Firma gelesen werden.
+  const { data: current, error: fetchError } = await supabase
+    .from('equipment_items')
+    .select('status')
+    .eq('id', id)
+    .maybeSingle()
+
+  if (fetchError || !current) {
     return NextResponse.json(
-      { error: `Ungültiger Übergang: ${from} → ${to}` },
+      { error: 'Gerät nicht gefunden oder keine Berechtigung.' },
+      { status: 404 }
+    )
+  }
+
+  if (!isValidTransition(current.status, to)) {
+    return NextResponse.json(
+      { error: `Ungültiger Statuswechsel.` },
       { status: 400 }
     )
   }
 
-  const { data, error } = await serviceClient
+  const { data, error } = await supabase
     .from('equipment_items')
     .update({
       status: to,
@@ -43,18 +62,12 @@ export const POST = createAuthenticatedRoute(async (request, { serviceClient }) 
     })
     .eq('id', id)
     .select('id')
+    .maybeSingle()
 
-  if (error) {
+  if (error || !data) {
     return NextResponse.json(
-      { error: `DB-Fehler: ${error.message} (Code: ${error.code})` },
+      { error: 'Statuswechsel fehlgeschlagen.' },
       { status: 500 }
-    )
-  }
-
-  if (!data || data.length === 0) {
-    return NextResponse.json(
-      { error: 'Keine Zeile aktualisiert — fehlende Berechtigung oder ungültige ID' },
-      { status: 403 }
     )
   }
 

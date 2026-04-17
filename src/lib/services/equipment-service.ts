@@ -132,7 +132,6 @@ export async function changeEquipmentStatus(
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         id,
-        from: currentStatus,
         to: targetStatus,
         sort_order: nextSortOrder,
         ...(lieferdatum !== undefined && { lieferdatum }),

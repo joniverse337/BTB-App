@@ -15,31 +15,27 @@ type UpdateFieldBody = z.infer<typeof requestSchema>
  *
  * Speichert Feldänderungen server-seitig — notwendig für Citrix-Umgebungen,
  * wo PATCH-Requests durch den Proxy geblockt werden.
+ *
+ * Sicherheit: Verwendet den RLS-enforced supabase-Client (User-Session).
+ * RLS stellt sicher, dass nur Geräte der eigenen Firma bearbeitet werden können.
  */
-export const POST = createAuthenticatedRoute(async (request, { serviceClient }) => {
+export const POST = createAuthenticatedRoute(async (request, { supabase }) => {
   const parsed = await parseJsonBody<UpdateFieldBody>(request, requestSchema)
   if (parsed instanceof NextResponse) return parsed
 
   const { id, fields } = parsed
 
-  const { data, error } = await serviceClient
+  const { data, error } = await supabase
     .from('equipment_items')
     .update(fields)
     .eq('id', id)
     .select('id')
-    .single()
+    .maybeSingle()
 
-  if (error) {
+  if (error || !data) {
     return NextResponse.json(
-      { error: `DB-Fehler: ${error.message} (Code: ${error.code})` },
+      { error: 'Speichern fehlgeschlagen.' },
       { status: 500 }
-    )
-  }
-
-  if (!data) {
-    return NextResponse.json(
-      { error: 'Keine Zeile aktualisiert — fehlende Berechtigung oder ungültige ID' },
-      { status: 403 }
     )
   }
 

@@ -55,6 +55,8 @@ export function GeraeteView({ projectId, project, companyName, printLagerplaetze
   const bedarfWrapperRef = useRef<HTMLDivElement>(null)
   const baustelleWrapperRef = useRef<HTMLDivElement>(null)
   const freiWrapperRef = useRef<HTMLDivElement>(null)
+  // Verhindert mehrfache gleichzeitige Statuswechsel auf demselben Gerät (z.B. Doppelklick in Citrix)
+  const pendingStatusRef = useRef<Set<string>>(new Set())
 
   // Fetch saved contact selections from project_settings
   useEffect(() => {
@@ -126,34 +128,47 @@ export function GeraeteView({ projectId, project, companyName, printLagerplaetze
   // Change status — single DB call; projectId and sort_order come from cache
   const handleStatusChange = useCallback(
     async (id: string, from: EquipmentStatus, to: EquipmentStatus) => {
-      // Cancel any in-flight refetches — prevents race condition where a background
-      // refetch returns stale DB data and overwrites the optimistic update
-      await queryClient.cancelQueries({ queryKey: queryKeys.equipment(projectId) })
+      // Doppelklick-Schutz: läuft bereits ein Statuswechsel für dieses Gerät, abbrechen
+      // (Citrix kann Klick-Events mehrfach feuern)
+      if (pendingStatusRef.current.has(id)) return
+      pendingStatusRef.current.add(id)
 
-      const cached = queryClient.getQueryData<EquipmentItem[]>(queryKeys.equipment(projectId)) ?? []
-      const maxOrder = cached.filter((i) => i.status === to).reduce((m, i) => Math.max(m, i.sort_order), -1)
-      const nextSortOrder = maxOrder + 1
+      try {
+        // Cancel any in-flight refetches — prevents race condition where a background
+        // refetch returns stale DB data and overwrites the optimistic update
+        await queryClient.cancelQueries({ queryKey: queryKeys.equipment(projectId) })
 
-      // Optimistic update
-      const optimistic: EquipmentItem = {
-        ...(cached.find((i) => i.id === id)!),
-        status: to,
-        sort_order: nextSortOrder,
-        status_ts: Math.floor(Date.now() / 1000),
-      }
-      queryClient.setQueryData<EquipmentItem[]>(queryKeys.equipment(projectId), (prev) =>
-        (prev ?? []).map((item) => (item.id === id ? optimistic : item))
-      )
-      // Cancel again: setQueryData re-render may schedule a new background refetch
-      await queryClient.cancelQueries({ queryKey: queryKeys.equipment(projectId) })
+        const cached = queryClient.getQueryData<EquipmentItem[]>(queryKeys.equipment(projectId)) ?? []
+        const maxOrder = cached.filter((i) => i.status === to).reduce((m, i) => Math.max(m, i.sort_order), -1)
+        const nextSortOrder = maxOrder + 1
 
-      const ok = await changeEquipmentStatus(id, from, to, nextSortOrder)
-      if (!ok) {
-        // Revert
+        // Optimistic update
+        const optimistic: EquipmentItem = {
+          ...(cached.find((i) => i.id === id)!),
+          status: to,
+          sort_order: nextSortOrder,
+          status_ts: Math.floor(Date.now() / 1000),
+        }
         queryClient.setQueryData<EquipmentItem[]>(queryKeys.equipment(projectId), (prev) =>
-          (prev ?? []).map((item) => (item.id === id ? (cached.find((c) => c.id === id) ?? item) : item))
+          (prev ?? []).map((item) => (item.id === id ? optimistic : item))
         )
-        toast.error('Statuswechsel fehlgeschlagen.')
+        // Cancel again: setQueryData re-render may schedule a new background refetch
+        await queryClient.cancelQueries({ queryKey: queryKeys.equipment(projectId) })
+
+        const ok = await changeEquipmentStatus(id, from, to, nextSortOrder)
+        if (!ok) {
+          // Revert on failure
+          queryClient.setQueryData<EquipmentItem[]>(queryKeys.equipment(projectId), (prev) =>
+            (prev ?? []).map((item) => (item.id === id ? (cached.find((c) => c.id === id) ?? item) : item))
+          )
+          toast.error('Statuswechsel fehlgeschlagen.')
+        } else {
+          // Nach erfolgreichem DB-Update Cache mit DB synchronisieren — verhindert, dass
+          // ein späterer Refetch (z.B. durch onBlur-Fehler) den optimistischen Stand überschreibt
+          await queryClient.invalidateQueries({ queryKey: queryKeys.equipment(projectId) })
+        }
+      } finally {
+        pendingStatusRef.current.delete(id)
       }
     },
     [projectId, queryClient]

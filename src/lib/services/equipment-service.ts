@@ -119,7 +119,15 @@ export async function changeEquipmentStatus(
 
   const supabase = createClient()
 
-  const { error } = await supabase
+  // Session prüfen — in Citrix kann die Session silent ablaufen, UPDATE schlägt dann
+  // ohne Fehler fehl (RLS filtert still, 0 Zeilen aktualisiert, error=null)
+  const { data: { session } } = await supabase.auth.getSession()
+  if (!session) {
+    logger.warn('equipment.statusChange', 'Keine aktive Session')
+    return { ok: false, reason: 'Keine aktive Sitzung — bitte Seite neu laden und erneut einloggen' }
+  }
+
+  const { data, error } = await supabase
     .from('equipment_items')
     .update({
       status: targetStatus,
@@ -127,10 +135,17 @@ export async function changeEquipmentStatus(
       sort_order: nextSortOrder,
     })
     .eq('id', id)
+    .select('id')
 
   if (error) {
     logger.error('equipment.statusChange', 'Status konnte nicht geaendert werden')
     return { ok: false, reason: `DB-Fehler: ${error.message} (Code: ${error.code})` }
+  }
+
+  // Keine Zeile aktualisiert → RLS hat gefiltert oder ID stimmt nicht
+  if (!data || data.length === 0) {
+    logger.warn('equipment.statusChange', 'UPDATE hat 0 Zeilen aktualisiert')
+    return { ok: false, reason: 'Keine Zeile aktualisiert — fehlende Berechtigung oder ungültige ID' }
   }
 
   return { ok: true }

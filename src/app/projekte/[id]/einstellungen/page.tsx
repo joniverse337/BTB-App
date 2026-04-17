@@ -560,22 +560,6 @@ export default function ProjectSettingsPage() {
               />
             </SettingsSection>
 
-            {/* Gerätebedarf — Druckoptionen */}
-            <SettingsSection
-              title="Gerätebedarf"
-              description="Druckoptionen für den Gerätebedarf."
-            >
-              <label className="flex items-center gap-3 cursor-pointer select-none">
-                <Checkbox
-                  checked={settings.print_lagerplaetze_with_geraete ?? false}
-                  onCheckedChange={(checked) =>
-                    saveField('print_lagerplaetze_with_geraete', checked === true)
-                  }
-                />
-                <span className="text-sm">Lagerplätze bei Gerätebedarf mitdrucken</span>
-              </label>
-            </SettingsSection>
-
           </div>
 
           {/* Right column: Live preview (sticky) */}

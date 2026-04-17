@@ -7,6 +7,8 @@ interface GeraeteActionBarProps {
   zoom: number
   onZoomChange: (zoom: number) => void
   onPrintAll: () => void
+  printLagerplaetze: boolean
+  onPrintLagerplaetzeChange: (value: boolean) => void
 }
 
 function ZoomSlider({ zoom, onZoomChange }: { zoom: number; onZoomChange: (z: number) => void }) {
@@ -47,7 +49,13 @@ function ZoomSlider({ zoom, onZoomChange }: { zoom: number; onZoomChange: (z: nu
   )
 }
 
-export function GeraeteActionBar({ zoom, onZoomChange, onPrintAll }: GeraeteActionBarProps) {
+export function GeraeteActionBar({
+  zoom,
+  onZoomChange,
+  onPrintAll,
+  printLagerplaetze,
+  onPrintLagerplaetzeChange,
+}: GeraeteActionBarProps) {
   return (
     <div
       data-no-print="true"
@@ -62,6 +70,39 @@ export function GeraeteActionBar({ zoom, onZoomChange, onPrintAll }: GeraeteActi
       >
         <Printer size={13} />
         Alle drucken
+      </button>
+
+      <button
+        onClick={() => onPrintLagerplaetzeChange(!printLagerplaetze)}
+        className="flex items-center gap-2 text-[11px] font-semibold border rounded-md py-1.5 px-3 whitespace-nowrap transition-colors"
+        style={{
+          borderColor: printLagerplaetze ? '#e8c547' : undefined,
+          background: printLagerplaetze ? 'rgba(232,197,71,0.12)' : undefined,
+          color: printLagerplaetze ? '#e8c547' : undefined,
+        }}
+        aria-label="Lagerplaetze beim Drucken mitdrucken"
+        aria-pressed={printLagerplaetze}
+      >
+        <span
+          style={{
+            width: '13px',
+            height: '13px',
+            borderRadius: '3px',
+            border: `1.5px solid ${printLagerplaetze ? '#e8c547' : 'currentColor'}`,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            flexShrink: 0,
+            background: printLagerplaetze ? '#e8c547' : 'transparent',
+          }}
+        >
+          {printLagerplaetze && (
+            <svg width="8" height="8" viewBox="0 0 8 8" fill="none">
+              <path d="M1.5 4L3.2 5.8L6.5 2.2" stroke="#171c28" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          )}
+        </span>
+        Lagerplätze mitdrucken
       </button>
     </div>
   )

@@ -24,8 +24,11 @@ import { useProjectSettingsQuery } from '@/hooks/queries/use-project-settings-qu
 import { useShiftsQuery } from '@/hooks/queries/use-shifts-query'
 import { useStorageLocationsQuery } from '@/hooks/queries/use-storage-locations-query'
 import { useEquipmentQuery } from '@/hooks/queries/use-equipment-query'
-import { useWorkNotificationsQuery } from '@/hooks/queries/use-work-notifications-query'
 import { queryKeys } from '@/lib/query-keys'
+
+const SHIFT_ALLOWED_FIELDS = new Set(['temp', 'wit', 'bod', 'beg', 'end', 'pau', 'gl', 'kv', 'kb', 'arb', 'vor'])
+const WORKER_ALLOWED_FIELDS = new Set(['beruf', 'anz', 'std'])
+const EQUIPMENT_ALLOWED_FIELDS = new Set(['typ', 'anz', 'std'])
 
 function getStoredZoom(): number {
   if (typeof window === 'undefined') return ZOOM_DEFAULT
@@ -45,25 +48,25 @@ function escHtml(str: string | null | undefined): string {
 const PRINT_STYLES = `
 @page { size: A4 portrait; margin: 0; }
 * { margin: 0; padding: 0; box-sizing: border-box; print-color-adjust: exact; -webkit-print-color-adjust: exact; }
-body { font-family: 'IBM Plex Sans', sans-serif; font-size: 8.5pt; color: #222; }
+body { font-family: 'IBM Plex Sans', sans-serif; font-size: 9.5pt; color: #222; }
 .page { width: 210mm; height: 297mm; padding: 7mm 9mm 22mm 9mm; position: relative; }
 .header { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2.5px solid #1a2040; padding-bottom: 6px; margin-bottom: 6px; }
-.firm { font-family: 'Inter', sans-serif; font-weight: 800; font-size: 14pt; color: #1a2040; }
-.firm-adr { font-size: 7pt; color: #666; margin-top: 2px; }
-.title { font-size: 11pt; font-weight: 700; color: #1a2040; text-transform: uppercase; letter-spacing: 0.5px; }
-.st { font-size: 6.5pt; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; color: #888; border-bottom: 1px solid #ddd; padding-bottom: 2px; margin-bottom: 5px; }
-.lbl { font-size: 6.5pt; color: #666; display: block; margin-bottom: 1px; }
-.val { font-size: 8pt; padding: 1px 2px; }
-.val-name { font-size: 8.5pt; font-weight: 600; padding: 1px 2px; }
+.firm { font-family: 'Inter', sans-serif; font-weight: 800; font-size: 15pt; color: #1a2040; }
+.firm-adr { font-size: 8pt; color: #666; margin-top: 2px; }
+.title { font-size: 12pt; font-weight: 700; color: #1a2040; text-transform: uppercase; letter-spacing: 0.5px; }
+.st { font-size: 7.5pt; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; color: #888; border-bottom: 1px solid #ddd; padding-bottom: 2px; margin-bottom: 5px; }
+.lbl { font-size: 7.5pt; color: #666; display: block; margin-bottom: 1px; }
+.val { font-size: 9pt; padding: 1px 2px; }
+.val-name { font-size: 9.5pt; font-weight: 600; padding: 1px 2px; }
 .grid3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 7px; margin-bottom: 5px; }
 .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; }
-table { width: 100%; border-collapse: collapse; font-size: 7.5pt; }
-th { background: #1a2040; color: #fff; padding: 2px 5px; text-align: left; font-size: 6pt; letter-spacing: 0.5px; }
+table { width: 100%; border-collapse: collapse; font-size: 8.5pt; }
+th { background: #1a2040; color: #fff; padding: 2px 5px; text-align: left; font-size: 7pt; letter-spacing: 0.5px; }
 td { padding: 2px 5px; border-bottom: 1px solid #eee; }
-.textarea { border: 1px solid #e8e8e8; border-radius: 3px; background: #fafafa; padding: 4px 5px; font-size: 8pt; min-height: 40px; white-space: pre-wrap; }
+.textarea { border: 1px solid #e8e8e8; border-radius: 3px; background: #fafafa; padding: 4px 5px; font-size: 9pt; min-height: 40px; white-space: pre-wrap; }
 .sig { position: absolute; bottom: 7mm; left: 9mm; right: 9mm; display: grid; grid-template-columns: 1fr 1fr; gap: 30px; }
 .sig-line { border-top: 1px solid #999; margin-bottom: 3px; height: 16px; }
-.sig-label { font-size: 7pt; color: #666; }
+.sig-label { font-size: 8pt; color: #666; }
 .spacer { height: 1.2em; }
 .section { margin-bottom: 5px; }
 .watermark { position: absolute; pointer-events: none; opacity: 0.3; transform: translate(-50%, -50%); }
@@ -96,7 +99,7 @@ function buildShiftPageDiv(shift: ShiftWithDetails, date: Date, project: Project
     </div>
     <div style="text-align:right">
       <div class="title">Bautagesbericht &nbsp; ${escHtml(dateLabel)}</div>
-      <div style="font-size:6.5pt;color:${schichtColor};font-weight:600;margin-top:2px">${schichtLabel}</div>
+      <div style="font-size:7.5pt;color:${schichtColor};font-weight:600;margin-top:2px">${schichtLabel}</div>
     </div>
   </div>
 
@@ -126,8 +129,8 @@ function buildShiftPageDiv(shift: ShiftWithDetails, date: Date, project: Project
 
   <div class="spacer"></div>
 
-  <div class="section" style="display:flex;align-items:baseline;gap:8px;border-bottom:1px solid #ddd;padding-bottom:2px;">
-    <span class="st" style="border-bottom:none;padding-bottom:0;margin-bottom:0;white-space:nowrap;flex-shrink:0;">Örtlichkeit:</span>
+  <div class="section" style="display:flex;align-items:baseline;gap:8px;border-bottom:2px solid #1a2040;padding-bottom:2px;">
+    <span class="st" style="border-bottom:none;padding-bottom:0;margin-bottom:0;white-space:nowrap;flex-shrink:0;color:#1a2040;">Örtlichkeit:</span>
     <span class="val">${escHtml(shift.gl) || ''}</span>
     ${shift.kv || shift.kb ? `<span class="val" style="color:#888;white-space:nowrap">km\u00a0${escHtml(shift.kv) || '\u2014'}\u2013${escHtml(shift.kb) || '\u2014'}</span>` : ''}
   </div>
@@ -137,14 +140,14 @@ function buildShiftPageDiv(shift: ShiftWithDetails, date: Date, project: Project
   <div class="grid2">
     <div class="section">
       <table>
-        <thead><tr><th>Personal</th><th style="width:32px">Anz</th><th style="width:36px">Std</th></tr></thead>
+        <thead><tr><th>Personal</th><th style="width:42px">Anz</th><th style="width:50px">Std</th></tr></thead>
         <tbody>${workersHtml || '<tr><td colspan="3" style="color:#999;font-style:italic">Keine Einträge</td></tr>'}</tbody>
         ${totWorkers > 0 ? `<tfoot><tr style="background:#f5f5f5"><td colspan="2" style="padding:2px 5px;font-size:7pt;font-weight:600">Gesamt</td><td style="padding:2px 5px;font-size:7pt;font-weight:700;text-align:right">${Math.round(totWorkers * 100) / 100} h</td></tr></tfoot>` : ''}
       </table>
     </div>
     <div class="section">
       <table>
-        <thead><tr><th>Maschinen & Gerät</th><th style="width:32px">Anz</th><th style="width:36px">Std</th></tr></thead>
+        <thead><tr><th>Maschinen & Gerät</th><th style="width:42px">Anz</th><th style="width:50px">Std</th></tr></thead>
         <tbody>${equipHtml || '<tr><td colspan="3" style="color:#999;font-style:italic">Keine Einträge</td></tr>'}</tbody>
         ${totEquip > 0 ? `<tfoot><tr style="background:#f5f5f5"><td colspan="2" style="padding:2px 5px;font-size:7pt;font-weight:600">Gesamt</td><td style="padding:2px 5px;font-size:7pt;font-weight:700;text-align:right">${Math.round(totEquip * 100) / 100} h</td></tr></tfoot>` : ''}
       </table>
@@ -270,26 +273,7 @@ export default function ProjectDetailPage() {
     )
   }, [allShifts, searchQuery])
 
-  // ── AA-Daten für aktive KW ────────────────────────────────────
   const activeWeek = weeks[activeKWIndex]
-  const { data: aaRows = [] } = useWorkNotificationsQuery(projectId, activeWeek?.year, activeWeek?.kw)
-
-  const aaShiftKeys = useMemo(() => {
-    const keys = new Set<string>()
-    for (const row of aaRows) {
-      if (row.day_start) keys.add(`${row.date}:tag`)
-      if (row.night_start) keys.add(`${row.date}:nacht`)
-    }
-    return keys
-  }, [aaRows])
-
-  const aaWorkDescriptions = useMemo(() => {
-    const descs = new Map<string, string>()
-    for (const row of aaRows) {
-      if (row.work_description) descs.set(row.date, row.work_description)
-    }
-    return descs
-  }, [aaRows])
 
   // Initialize zoom from localStorage
   useEffect(() => {
@@ -438,6 +422,8 @@ export default function ProjectDetailPage() {
     field: string,
     value: string | number | null
   ) => {
+    if (!SHIFT_ALLOWED_FIELDS.has(field)) return
+
     queryClient.setQueryData<ShiftWithDetails[]>(queryKeys.shifts(projectId), (prev) =>
       (prev ?? []).map((s) => (s.id === shiftId ? { ...s, [field]: value } : s))
     )
@@ -553,6 +539,8 @@ export default function ProjectDetailPage() {
     field: string,
     value: string | number
   ) => {
+    if (!WORKER_ALLOWED_FIELDS.has(field)) return
+
     queryClient.setQueryData<ShiftWithDetails[]>(queryKeys.shifts(projectId), (prev) =>
       (prev ?? []).map((s) => ({
         ...s,
@@ -632,6 +620,8 @@ export default function ProjectDetailPage() {
     field: string,
     value: string | number
   ) => {
+    if (!EQUIPMENT_ALLOWED_FIELDS.has(field)) return
+
     queryClient.setQueryData<ShiftWithDetails[]>(queryKeys.shifts(projectId), (prev) =>
       (prev ?? []).map((s) => ({
         ...s,
@@ -668,53 +658,23 @@ export default function ProjectDetailPage() {
     }
   }
 
-  // --- Arbeitsanmeldung: BTBs erstellen ---
-
-  const handleCreateFromAA = async (datum: string, typ: 'tag' | 'nacht') => {
-    if (!activeWeek) return
-
-    try {
-      const res = await fetch('/api/work-notifications/create-shifts', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          project_id: projectId,
-          year: activeWeek.year,
-          calendar_week: activeWeek.kw,
-          date: datum,
-          typ,
-        }),
-      })
-      const data = await res.json()
-      if (!res.ok) {
-        toast.error(data.error ?? 'Fehler beim Erstellen der BTBs.')
-        return
-      }
-      if (data.skipped > 0 && data.created === 0) {
-        toast.info('BTBs wurden bereits erstellt — bestehende Einträge wurden nicht überschrieben.')
-      } else if (data.skipped > 0) {
-        toast.success(`${data.created} BTB(s) erstellt. ${data.skipped} bereits vorhanden, nicht überschrieben.`)
-      } else {
-        toast.success(`${data.created} BTB(s) aus Arbeitsanmeldung erstellt.`)
-      }
-      // Reload all shifts so grid and dot raster are up to date
-      await queryClient.invalidateQueries({ queryKey: queryKeys.shifts(projectId) })
-    } catch {
-      toast.error('Fehler beim Erstellen der BTBs.')
-    }
-  }
-
   // --- Print ---
 
   const handlePrintShift = (shift: ShiftWithDetails, date: Date) => {
-    const html = buildShiftPrintHtml(shift, date, project, projectLogo, getCspNonce())
-    const win = window.open('', '_blank')
-    if (!win) {
-      toast.warning('Pop-up-Blocker aktiv. Bitte erlaube Pop-ups für diese Seite.')
-      return
-    }
-    win.document.write(html)
-    win.document.close()
+    const el = document.querySelector<HTMLElement>(`[data-shift-id="${shift.id}"]`)
+    if (!el) return
+
+    const [y, m, d] = shift.datum.split('-')
+    const prevTitle = document.title
+    document.title = `BTB ${d}.${m}.${y}`
+
+    el.classList.add('btb-print-active')
+    window.print()
+
+    window.addEventListener('afterprint', () => {
+      document.title = prevTitle
+      el.classList.remove('btb-print-active')
+    }, { once: true })
   }
 
   const handlePrintKW = () => {
@@ -879,9 +839,7 @@ ${pages}
               onUpdateEquipment={handleUpdateEquipment}
               onDeleteEquipment={handleDeleteEquipment}
               onPrintShift={handlePrintShift}
-              aaShiftKeys={aaShiftKeys}
-              aaWorkDescriptions={aaWorkDescriptions}
-              onCreateFromAA={handleCreateFromAA}
+
             />
           )}
         </div>

@@ -633,7 +633,8 @@ export function WorkNotificationTable({
                         data-no-print="true"
                         onClick={() => onRemoveDay(row.weekday_nr)}
                         title="Tag entfernen"
-                        style={{ position: 'absolute', top: '50%', right: '-14px', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', padding: '2px', color: '#e05555', fontSize: '9pt', lineHeight: 1 }}
+                        className="circle-btn-red"
+                        style={{ position: 'absolute', top: '50%', right: 'calc(10px - 8mm)', transform: 'translateY(-50%)', borderRadius: '50%', cursor: 'pointer', fontSize: '13px', width: '16px', height: '16px', padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', lineHeight: 1 }}
                       >×</button>
                     </td>
                   </>

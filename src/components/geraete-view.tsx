@@ -39,16 +39,17 @@ interface GeraeteViewProps {
   logoUrl?: string | null
 }
 
-export function GeraeteView({ projectId, project, companyName, printLagerplaetze, logoUrl }: GeraeteViewProps) {
+export function GeraeteView({ projectId, project, companyName, printLagerplaetze: printLagerplaetzeProp, logoUrl }: GeraeteViewProps) {
   const queryClient = useQueryClient()
   const { data: items = [], isLoading } = useEquipmentQuery(projectId)
   const { data: projectContacts = [] } = useProjectContactsQuery(projectId)
-  const { data: storageLocations = [] } = useStorageLocationsQuery(printLagerplaetze ? projectId : undefined)
   const [zoom, setZoom] = useState(60)
+  const [printLagerplaetze, setPrintLagerplaetze] = useState(printLagerplaetzeProp ?? false)
   const [deleteTarget, setDeleteTarget] = useState<EquipmentItem | null>(null)
   const [contactsByStatus, setContactsByStatus] = useState<Record<EquipmentStatus, ContactSnapshot[]>>({
     bedarf: [], baustelle: [], frei: [],
   })
+  const { data: storageLocations = [] } = useStorageLocationsQuery(printLagerplaetze ? projectId : undefined)
 
   const outerRef = useRef<HTMLDivElement>(null)
   const bedarfWrapperRef = useRef<HTMLDivElement>(null)
@@ -68,6 +69,14 @@ export function GeraeteView({ projectId, project, companyName, printLagerplaetze
           frei: parseSnapshots(data.equipment_frei_contacts),
         })
       })
+  }, [projectId])
+
+  const handlePrintLagerplaetzeChange = useCallback(async (value: boolean) => {
+    setPrintLagerplaetze(value)
+    const supabase = createClient()
+    await supabase.from('project_settings')
+      .update({ print_lagerplaetze_with_geraete: value })
+      .eq('project_id', projectId)
   }, [projectId])
 
   const handleContactsChange = useCallback(async (status: EquipmentStatus, contacts: ContactSnapshot[]) => {
@@ -199,36 +208,28 @@ export function GeraeteView({ projectId, project, companyName, printLagerplaetze
         zoom={zoom}
         onZoomChange={setZoom}
         onPrintAll={handlePrint}
+        printLagerplaetze={printLagerplaetze}
+        onPrintLagerplaetzeChange={handlePrintLagerplaetzeChange}
       />
 
       <div
         className="geraete-board"
         style={{ flex: 1, overflow: 'auto', padding: '20px' }}
       >
-        {/* Spacer: nimmt die visuellen (skalierten) Maße ein → Scrollbar korrekt */}
+        {/* Bundle: alle 3 Blätter + Pfeile als Einheit skaliert.
+            CSS zoom statt transform:scale — zoom beeinflusst das Layout direkt,
+            sodass Klick-Hitboxen mit der visuellen Position übereinstimmen.
+            Das funktioniert auch in virtualisierten Umgebungen (z.B. Citrix). */}
         <div
-          className="geraete-zoom-spacer"
+          className="geraete-bundle"
           style={{
-            width: `calc((630mm + 260px) * ${zoom / 100})`,
-            height: `calc((297mm + 40px) * ${zoom / 100})`,
-            position: 'relative',
+            display: 'flex',
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: '50px',
+            zoom: zoom / 100,
           }}
         >
-          {/* Bundle: alle 3 Blätter + Pfeile als Einheit skaliert */}
-          <div
-            className="geraete-bundle"
-            style={{
-              position: 'absolute',
-              top: 0,
-              left: 0,
-              transformOrigin: 'top left',
-              transform: `scale(${zoom / 100})`,
-              display: 'flex',
-              flexDirection: 'row',
-              alignItems: 'center',
-              gap: '50px',
-            }}
-          >
             {/* Card 1: BEDARF */}
             <div ref={bedarfWrapperRef} className="geraete-paper-wrapper">
               <PaperEngine orientation="portrait" zoom={100} onPrint={() => handlePrintSingle(bedarfWrapperRef)}>
@@ -269,7 +270,7 @@ export function GeraeteView({ projectId, project, companyName, printLagerplaetze
                   projectInfo={projectInfo}
                   companyName={companyName}
                   pageNumber={2}
-                  editableFields="nummer-only"
+                  editableFields="all"
                   projectId={projectId}
                   onAddEquipment={() => handleAddEquipment('baustelle')}
                   onUpdateField={handleUpdateField}
@@ -300,7 +301,7 @@ export function GeraeteView({ projectId, project, companyName, printLagerplaetze
                   projectInfo={projectInfo}
                   companyName={companyName}
                   pageNumber={3}
-                  editableFields="none"
+                  editableFields="all"
                   projectId={projectId}
                   onAddEquipment={() => handleAddEquipment('frei')}
                   onUpdateField={handleUpdateField}
@@ -312,7 +313,6 @@ export function GeraeteView({ projectId, project, companyName, printLagerplaetze
                 />
               </PaperEngine>
             </div>
-          </div>
         </div>
       </div>
 

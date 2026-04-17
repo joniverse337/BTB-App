@@ -12,10 +12,17 @@ const A4 = {
 interface PaperEngineProps {
   orientation: 'portrait' | 'landscape'
   zoom?: number
+  /** Ursprung der CSS-Transform beim Zoomen. Standard: 'top center' (zentriert).
+   *  Im Grid-Kontext 'top left' verwenden, damit der Inhalt links ausgerichtet skaliert. */
+  transformOrigin?: string
   /** Wird aufgerufen wenn der Nutzer auf Drucken klickt — Standard: window.print() */
   onPrint?: () => void
   /** Wird aufgerufen wenn der Nutzer auf Löschen klickt — zeigt X-Button neben Druck-Button */
   onDelete?: () => void
+  /** Zeigt gelben Aktivierungsring direkt am Papier */
+  isActive?: boolean
+  /** Zusätzliche CSS-Klassen direkt auf dem Papier-Div */
+  paperClassName?: string
   children: React.ReactNode
 }
 
@@ -34,8 +41,11 @@ interface PaperEngineProps {
 export function PaperEngine({
   orientation,
   zoom = 75,
+  transformOrigin = 'top center',
   onPrint,
   onDelete,
+  isActive = false,
+  paperClassName,
   children,
 }: PaperEngineProps) {
   const paperRef = useRef<HTMLDivElement>(null)
@@ -54,9 +64,9 @@ export function PaperEngine({
       style={{
         display: 'flex',
         flexDirection: 'column',
-        alignItems: 'center',
+        alignItems: transformOrigin === 'top left' ? 'flex-start' : 'center',
         width: '100%',
-        paddingBottom: '40px',
+        paddingBottom: transformOrigin === 'top left' ? 0 : '40px',
       }}
     >
       {/* Äußerer Wrapper: zentriert das Blatt und skaliert via zoom.
@@ -65,7 +75,7 @@ export function PaperEngine({
       <div
         className="paper-engine-zoom-wrapper group"
         style={{
-          transformOrigin: 'top center',
+          transformOrigin,
           transform: `scale(${zoom / 100})`,
           // Damit der Container bei kleinem Zoom nicht zu viel Platz einnimmt
           marginBottom: `calc((${zoom / 100} - 1) * ${dims.height})`,
@@ -74,13 +84,15 @@ export function PaperEngine({
         {/* Das weiße DIN-A4-Blatt — Layer 1 */}
         <div
           ref={paperRef}
-          className="paper-print-target"
+          className={`paper-print-target${paperClassName ? ` ${paperClassName}` : ''}`}
           style={{
             width: dims.width,
             height: dims.height,
             background: '#fff',
             position: 'relative',
-            boxShadow: '0 4px 24px rgba(0,0,0,0.45)',
+            boxShadow: isActive
+              ? '0 4px 24px rgba(0,0,0,0.45), 0 0 0 8px #e8c547'
+              : '0 4px 24px rgba(0,0,0,0.45)',
             borderRadius: '12px',
             overflow: 'hidden',
             fontFamily: 'var(--font-ibm-plex-sans), sans-serif',

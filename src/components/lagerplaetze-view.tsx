@@ -45,7 +45,7 @@ function NewLocationCard({ onCreate }: { onCreate: () => void }) {
       onClick={onCreate}
       data-no-print="true"
       className="group flex flex-col items-center justify-center gap-3 rounded-[12px] border-2 border-dashed border-[rgba(232,197,71,0.45)] bg-[rgba(232,197,71,0.04)] text-[rgba(232,197,71,0.7)] transition-colors duration-150 hover:border-[rgba(232,197,71,0.7)] hover:bg-[rgba(232,197,71,0.09)] hover:text-[#e8c547] cursor-pointer"
-      style={{ flexShrink: 0, width: '210mm', height: 'calc(297mm + 40px)' }}
+      style={{ flexShrink: 0, width: '210mm', height: '297mm' }}
       aria-label="Neuen Lagerplatz anlegen"
     >
       <Plus size={28} strokeWidth={1.5} />

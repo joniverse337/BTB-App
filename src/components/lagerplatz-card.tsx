@@ -517,14 +517,15 @@ export const LagerplatzCard = forwardRef<LagerplatzCardRef, LagerplatzCardProps>
       // onFocus bubbles from any focused child → activates this card
       <div
         ref={wrapperRef}
-        style={{ flexShrink: 0 }}
+        style={{ flexShrink: 0, width: 'fit-content' }}
         onFocus={onActivate}
         onClick={onActivate}
-        className={`rounded-[12px] transition-shadow duration-150 ${isActive ? 'ring-8 ring-[#e8c547]' : 'lagerplatz-card-hover'}`}
       >
         <PaperEngine
           orientation="portrait"
           zoom={zoom}
+          isActive={isActive}
+          paperClassName={!isActive ? 'lagerplatz-card-hover' : undefined}
           onPrint={handlePrint}
           onDelete={onDelete}
         >

@@ -462,18 +462,21 @@ function EquipmentRow({
                 onStatusChange(item.id, status, target as EquipmentStatus)
               }}
               title={status === 'baustelle' ? 'Zurueck zu Bedarf' : 'Zurueck zu Baustelle'}
+              className="circle-btn-green"
               style={{
-                background: 'none',
-                border: 'none',
+                borderRadius: '50%',
                 cursor: 'pointer',
-                padding: '2px',
-                color: '#888',
+                padding: 0,
+                width: '16px',
+                height: '16px',
                 display: 'flex',
                 alignItems: 'center',
+                justifyContent: 'center',
+                flexShrink: 0,
               }}
               aria-label={status === 'baustelle' ? 'Zurueck zu Bedarf' : 'Zurueck zu Baustelle'}
             >
-              <ArrowLeft size={12} />
+              <ArrowLeft size={10} strokeWidth={2.5} />
             </button>
           )}
           {/* Forward arrow */}
@@ -486,36 +489,44 @@ function EquipmentRow({
                 onStatusChange(item.id, status, target as EquipmentStatus)
               }}
               title={status === 'bedarf' ? 'Zu Baustelle verschieben' : 'Freimelden'}
+              className="circle-btn-green"
               style={{
-                background: 'none',
-                border: 'none',
+                borderRadius: '50%',
                 cursor: 'pointer',
-                padding: '2px',
-                color: '#888',
+                padding: 0,
+                width: '16px',
+                height: '16px',
                 display: 'flex',
                 alignItems: 'center',
+                justifyContent: 'center',
+                flexShrink: 0,
               }}
               aria-label={status === 'bedarf' ? 'Zu Baustelle verschieben' : 'Freimelden'}
             >
-              <ArrowRight size={12} />
+              <ArrowRight size={10} strokeWidth={2.5} />
             </button>
           )}
           {/* Delete */}
           <button
             onClick={() => onDeleteRequest(item)}
             title="Geraet loeschen"
+            className="circle-btn-red"
             style={{
-              background: 'none',
-              border: 'none',
+              borderRadius: '50%',
               cursor: 'pointer',
-              padding: '2px',
-              color: '#e05555',
+              padding: 0,
+              color: '#cc5555',
+              width: '16px',
+              height: '16px',
               display: 'flex',
               alignItems: 'center',
+              justifyContent: 'center',
+              marginLeft: '15px',
+              flexShrink: 0,
             }}
             aria-label="Geraet loeschen"
           >
-            <X size={12} strokeWidth={2.5} />
+            <X size={10} strokeWidth={2.5} />
           </button>
         </div>
       </td>

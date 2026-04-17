@@ -9,7 +9,6 @@ interface ShiftContextValue {
   logo: { url: string; x: number; y: number; size: number } | null
   workerCategories: string[] | undefined
   equipmentCategories: string[] | undefined
-  aaShiftKeys: Set<string>
   onCreateShift: (datum: string, typ: 'tag' | 'nacht') => Promise<void>
   onCopyPreviousDay: (datum: string, typ: 'tag' | 'nacht') => Promise<void>
   onUpdateShift: (shiftId: string, field: string, value: string | number | null) => Promise<void>
@@ -21,7 +20,6 @@ interface ShiftContextValue {
   onUpdateEquipment: (equipmentId: string, field: string, value: string | number) => Promise<void>
   onDeleteEquipment: (equipmentId: string) => Promise<void>
   onPrintShift: (shift: ShiftWithDetails, date: Date) => void
-  onCreateFromAA: (datum: string, typ: 'tag' | 'nacht') => Promise<void>
 }
 
 const ShiftContext = createContext<ShiftContextValue | null>(null)

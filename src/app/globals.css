@@ -57,6 +57,41 @@
   animation: cardRingPulse 1.4s linear infinite;
 }
 
+/* Circle icon buttons — grey (+), green (→), red (×) */
+.circle-btn-grey {
+  border: 1.5px solid #bbb !important;
+  color: #888 !important;
+  background: none !important;
+  transition: background 0.15s, color 0.15s, border-color 0.15s !important;
+}
+.circle-btn-grey:hover {
+  background: #888 !important;
+  border-color: #888 !important;
+  color: #fff !important;
+}
+.circle-btn-green {
+  border: 1.5px solid #52b77a !important;
+  color: #52b77a !important;
+  background: none !important;
+  transition: background 0.15s, color 0.15s, border-color 0.15s !important;
+}
+.circle-btn-green:hover {
+  background: #52b77a !important;
+  border-color: #52b77a !important;
+  color: #fff !important;
+}
+.circle-btn-red {
+  border: 1.5px solid #cc5555 !important;
+  color: #cc5555 !important;
+  background: none !important;
+  transition: background 0.15s, color 0.15s, border-color 0.15s !important;
+}
+.circle-btn-red:hover {
+  background: #cc5555 !important;
+  border-color: #cc5555 !important;
+  color: #fff !important;
+}
+
 /* Curtain wipe animation for Lagerplaetze screenshot */
 @keyframes curtainWipe {
   0% { width: 0%; }
@@ -171,6 +206,14 @@ input:-webkit-autofill:focus {
    WYSIWYG: Druckt exakt das was auf dem Bildschirm zu sehen ist.
    Alles außer .paper-print-target wird ausgeblendet.
    ============================================================= */
+
+/* Browser-Kopf- und Fußzeilen (URL, Datum, Seitenzahl) entfernen.
+   margin: 0 unterdrückt Chromes eingebaute Header/Footer beim Drucken.
+   Zusätzlich zu der @page-Regel in PaperEngine als globaler Fallback. */
+@page {
+  margin: 0;
+}
+
 @media print {
   /* Schritt 0: Browser-Defaults zurücksetzen — Safari hat standardmäßig 8px body-margin
      die den Seitenfluss minimal verschieben und Subpixel-Overflow verursachen können */
@@ -246,15 +289,8 @@ input:-webkit-autofill:focus {
     overflow: visible !important;
   }
 
-  .geraete-zoom-spacer {
-    position: static !important;
-    width: auto !important;
-    height: auto !important;
-  }
-
   .geraete-bundle {
-    transform: none !important;
-    position: static !important;
+    zoom: 1 !important;
     flex-direction: column !important;
     gap: 0 !important;
   }
@@ -358,5 +394,22 @@ input:-webkit-autofill:focus {
   /* Einzelkarten-Druck: Append verstecken wenn data-single-print aktiv */
   [data-single-print] .geraete-lagerplatz-append {
     display: none !important;
+  }
+
+  /* Schritt 10: BTB Einzel-Druck — .btb-print-active markiert die gedruckte Karte.
+     Alle anderen .paper-print-target werden ausgeblendet und aus dem Layout genommen,
+     damit der Browser nur eine A4-Seite rendert. */
+  body:has(.btb-print-active) .paper-print-target {
+    visibility: hidden !important;
+    position: static !important;
+  }
+  body:has(.btb-print-active) .btb-print-active .paper-print-target {
+    visibility: visible !important;
+    position: absolute !important;
+    top: 0 !important;
+    left: 0 !important;
+  }
+  body:has(.btb-print-active) .btb-print-active .paper-print-target * {
+    visibility: visible !important;
   }
 }

@@ -7,5 +7,6 @@ export function useEquipmentQuery(projectId: string | undefined) {
     queryKey: queryKeys.equipment(projectId ?? ''),
     queryFn: () => fetchEquipmentItems(projectId!),
     enabled: !!projectId,
+    staleTime: 30_000,
   })
 }

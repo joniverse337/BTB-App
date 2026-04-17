@@ -144,6 +144,8 @@ export function GeraeteView({ projectId, project, companyName, printLagerplaetze
       queryClient.setQueryData<EquipmentItem[]>(queryKeys.equipment(projectId), (prev) =>
         (prev ?? []).map((item) => (item.id === id ? optimistic : item))
       )
+      // Cancel again: setQueryData re-render may schedule a new background refetch
+      await queryClient.cancelQueries({ queryKey: queryKeys.equipment(projectId) })
 
       const ok = await changeEquipmentStatus(id, from, to, nextSortOrder)
       if (!ok) {

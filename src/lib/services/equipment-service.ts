@@ -70,7 +70,8 @@ export async function createEquipmentItem(
 
 /**
  * Update an existing equipment item. Validates input with Zod.
- * Returns the updated item or null on failure.
+ * Läuft über eine POST-API-Route, da Citrix-Proxies PATCH-Requests blocken.
+ * Returns the updated item (dummy, only id) or null on failure.
  */
 export async function updateEquipmentItem(
   id: string,
@@ -82,20 +83,24 @@ export async function updateEquipmentItem(
     return null
   }
 
-  const supabase = createClient()
-  const { data, error } = await supabase
-    .from('equipment_items')
-    .update(parsed.data)
-    .eq('id', id)
-    .select()
-    .single()
+  try {
+    const res = await fetch('/api/equipment/update-field', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id, fields: parsed.data }),
+    })
 
-  if (error) {
-    logger.error('equipment.update', 'Geraet konnte nicht aktualisiert werden')
+    if (!res.ok) {
+      logger.error('equipment.update', 'Geraet konnte nicht aktualisiert werden')
+      return null
+    }
+
+    // Gibt kein vollständiges Item zurück — Caller nutzt optimistisches Update im Cache
+    return { id } as unknown as EquipmentItem
+  } catch (err) {
+    logger.error('equipment.update', `Netzwerkfehler: ${err instanceof Error ? err.message : String(err)}`)
     return null
   }
-
-  return data as EquipmentItem
 }
 
 // ── Status Change ───────────────────────────────────────────

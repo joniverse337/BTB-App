@@ -117,38 +117,32 @@ export async function changeEquipmentStatus(
     return { ok: false, reason: `Ungültiger Übergang: ${currentStatus} → ${targetStatus}` }
   }
 
-  const supabase = createClient()
-
-  // Session prüfen — in Citrix kann die Session silent ablaufen, UPDATE schlägt dann
-  // ohne Fehler fehl (RLS filtert still, 0 Zeilen aktualisiert, error=null)
-  const { data: { session } } = await supabase.auth.getSession()
-  if (!session) {
-    logger.warn('equipment.statusChange', 'Keine aktive Session')
-    return { ok: false, reason: 'Keine aktive Sitzung — bitte Seite neu laden und erneut einloggen' }
-  }
-
-  const { data, error } = await supabase
-    .from('equipment_items')
-    .update({
-      status: targetStatus,
-      status_ts: Math.floor(Date.now() / 1000),
-      sort_order: nextSortOrder,
+  // Statuswechsel läuft über eine API-Route (POST) statt direktem Supabase-PATCH.
+  // In Citrix-Umgebungen werden PATCH-Requests durch den Proxy geblockt,
+  // POST-Requests funktionieren jedoch zuverlässig.
+  try {
+    const res = await fetch('/api/equipment/status-change', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        id,
+        from: currentStatus,
+        to: targetStatus,
+        sort_order: nextSortOrder,
+      }),
     })
-    .eq('id', id)
-    .select('id')
 
-  if (error) {
-    logger.error('equipment.statusChange', 'Status konnte nicht geaendert werden')
-    return { ok: false, reason: `DB-Fehler: ${error.message} (Code: ${error.code})` }
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({ error: `HTTP ${res.status}` }))
+      logger.error('equipment.statusChange', 'Status konnte nicht geaendert werden')
+      return { ok: false, reason: body.error ?? `HTTP ${res.status}` }
+    }
+
+    return { ok: true }
+  } catch (err) {
+    logger.error('equipment.statusChange', 'Netzwerkfehler beim Statuswechsel')
+    return { ok: false, reason: `Netzwerkfehler: ${err instanceof Error ? err.message : String(err)}` }
   }
-
-  // Keine Zeile aktualisiert → RLS hat gefiltert oder ID stimmt nicht
-  if (!data || data.length === 0) {
-    logger.warn('equipment.statusChange', 'UPDATE hat 0 Zeilen aktualisiert')
-    return { ok: false, reason: 'Keine Zeile aktualisiert — fehlende Berechtigung oder ungültige ID' }
-  }
-
-  return { ok: true }
 }
 
 // ── Delete ──────────────────────────────────────────────────

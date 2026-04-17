@@ -123,15 +123,34 @@ export function GeraeteView({ projectId, project, companyName, printLagerplaetze
     [projectId, queryClient]
   )
 
-  // Change status
+  // Change status — single DB call; projectId and sort_order come from cache
   const handleStatusChange = useCallback(
     async (id: string, from: EquipmentStatus, to: EquipmentStatus) => {
-      const result = await changeEquipmentStatus(id, from, to)
+      const cached = queryClient.getQueryData<EquipmentItem[]>(queryKeys.equipment(projectId)) ?? []
+      const maxOrder = cached.filter((i) => i.status === to).reduce((m, i) => Math.max(m, i.sort_order), -1)
+      const nextSortOrder = maxOrder + 1
+
+      // Optimistic update
+      const optimistic: EquipmentItem = {
+        ...(cached.find((i) => i.id === id)!),
+        status: to,
+        sort_order: nextSortOrder,
+        status_ts: Math.floor(Date.now() / 1000),
+      }
+      queryClient.setQueryData<EquipmentItem[]>(queryKeys.equipment(projectId), (prev) =>
+        (prev ?? []).map((item) => (item.id === id ? optimistic : item))
+      )
+
+      const result = await changeEquipmentStatus(id, from, to, nextSortOrder)
       if (result) {
         queryClient.setQueryData<EquipmentItem[]>(queryKeys.equipment(projectId), (prev) =>
           (prev ?? []).map((item) => (item.id === id ? result : item))
         )
       } else {
+        // Revert
+        queryClient.setQueryData<EquipmentItem[]>(queryKeys.equipment(projectId), (prev) =>
+          (prev ?? []).map((item) => (item.id === id ? (cached.find((c) => c.id === id) ?? item) : item))
+        )
         toast.error('Statuswechsel fehlgeschlagen.')
       }
     },

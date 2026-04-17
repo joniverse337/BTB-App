@@ -102,13 +102,15 @@ export async function updateEquipmentItem(
 
 /**
  * Change equipment item status with transition validation.
- * Validates that the transition is allowed (bedarf→baustelle, baustelle→frei, etc.)
- * Sets status_ts to current Unix timestamp and assigns sort_order for target column.
+ * Caller must supply projectId and nextSortOrder (computed from cached data)
+ * so that only a single DB round-trip is needed — important for Citrix environments
+ * where sequential async calls time out silently.
  */
 export async function changeEquipmentStatus(
   id: string,
   currentStatus: EquipmentStatus,
-  targetStatus: EquipmentStatus
+  targetStatus: EquipmentStatus,
+  nextSortOrder: number
 ): Promise<EquipmentItem | null> {
   if (!isValidTransition(currentStatus, targetStatus)) {
     logger.warn('equipment.statusChange', 'Ungueltiger Status-Uebergang')
@@ -116,30 +118,6 @@ export async function changeEquipmentStatus(
   }
 
   const supabase = createClient()
-
-  // Get the max sort_order in the target status group for this project
-  const { data: existing } = await supabase
-    .from('equipment_items')
-    .select('project_id')
-    .eq('id', id)
-    .single()
-
-  if (!existing) {
-    logger.warn('equipment.statusChange', 'Geraet nicht gefunden')
-    return null
-  }
-
-  const { data: maxOrderData } = await supabase
-    .from('equipment_items')
-    .select('sort_order')
-    .eq('project_id', existing.project_id)
-    .eq('status', targetStatus)
-    .order('sort_order', { ascending: false })
-    .limit(1)
-    .single()
-
-  // Place at end of target column (max + 1)
-  const nextSortOrder = (maxOrderData?.sort_order ?? -1) + 1
 
   const { data, error } = await supabase
     .from('equipment_items')

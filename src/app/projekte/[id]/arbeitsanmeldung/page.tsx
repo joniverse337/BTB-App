@@ -511,23 +511,22 @@ export default function ArbeitsanmeldungPage() {
     }
   }
 
-  // Status-Rechteck für KW-Chips: gelb gefüllt = AA vorhanden
+  // Status-Rechteck für KW-Chips: grau = keine AA, gelb gefüllt = AA vorhanden
   const renderWeekStatus = (week: KWInfo) => {
     const hasAA = (notificationIndex ?? []).some(r => r.year === week.year && r.calendar_week === week.kw)
-    if (!hasAA) return null
     return (
       <div style={{
         marginTop: '4px',
         width: '52px', height: '12px',
-        border: 'none',
-        background: '#e8c547',
+        border: hasAA ? 'none' : '1px solid #555',
+        background: hasAA ? '#e8c547' : 'transparent',
         borderRadius: '2px',
         display: 'flex', alignItems: 'center', justifyContent: 'center',
       }}>
         <svg width="10" height="8" viewBox="0 0 10 8" fill="none">
           <polyline
             points="1,4 4,7 9,1"
-            stroke='#1a2040'
+            stroke={hasAA ? '#1a2040' : '#555'}
             strokeWidth="1.5"
             strokeLinecap="round"
             strokeLinejoin="round"

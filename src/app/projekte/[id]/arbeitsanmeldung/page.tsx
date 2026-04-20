@@ -193,9 +193,15 @@ export default function ArbeitsanmeldungPage() {
     const failed = results.filter((r) => !r.ok).length
     if (failed > 0) {
       toast.error(`Arbeitsanmeldung konnte nicht angelegt werden (${failed}/${results.length} Zeilen fehlgeschlagen).`)
-      // Optimistischen State zurücksetzen, damit der User es erneut versuchen kann
       setAaExists(false)
       setRows([])
+    } else {
+      await queryClient.invalidateQueries({
+        queryKey: queryKeys.workNotifications(projectId, activeWeek.year, activeWeek.kw),
+      })
+      await queryClient.invalidateQueries({
+        queryKey: queryKeys.workNotificationsIndex(projectId),
+      })
     }
   }
 

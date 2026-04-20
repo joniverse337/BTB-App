@@ -10,6 +10,7 @@ import { KWNavigation } from '@/components/kw-navigation'
 import { ShiftGrid } from '@/components/shift-grid'
 import { DeleteShiftDialog } from '@/components/delete-shift-dialog'
 import { createClient } from '@/lib/supabase'
+import { updateShiftField, updateShiftWorker, updateShiftEquipment } from '@/lib/services/shifts-service'
 import { getKWsForRange, getCurrentKWIndex, toDateString, formatCardDate, formatNightShiftDate, calculateNetHours } from '@/lib/kw-utils'
 import type { KWInfo } from '@/lib/kw-utils'
 import type { Project } from '@/lib/validations/project'
@@ -429,58 +430,35 @@ export default function ProjectDetailPage() {
       (prev ?? []).map((s) => (s.id === shiftId ? { ...s, [field]: value } : s))
     )
 
-    try {
-      const supabase = createClient()
-      const { error } = await supabase
-        .from('shifts')
-        .update({ [field]: value })
-        .eq('id', shiftId)
-
-      if (error) {
-        queryClient.setQueryData(queryKeys.shifts(projectId), previous)
-        toast.error('Änderung konnte nicht gespeichert werden.')
-        return
-      }
-
-      // Sync worker/equipment hours when shift times change
-      if (['beg', 'end', 'pau'].includes(field)) {
-        const shift = allShifts.find((s) => s.id === shiftId)
-        if (!shift) return
+    // std-Sync bei Zeitänderung: Nettostunden berechnen und als syncStd mitgeben
+    let stdSync: { workerIds: string[]; equipmentIds: string[]; value: number } | undefined
+    if (['beg', 'end', 'pau'].includes(field)) {
+      const shift = allShifts.find((s) => s.id === shiftId)
+      if (shift) {
         const updated = { ...shift, [field]: value }
         if (updated.beg && updated.end) {
-          const [bH, bM] = updated.beg.split(':').map(Number)
-          const [eH, eM] = updated.end.split(':').map(Number)
-          let total = eH * 60 + eM - (bH * 60 + bM)
-          if (total < 0) total += 24 * 60
-          total -= (updated.pau ?? 0)
-          const netHours = total > 0 ? Math.round((total / 60) * 100) / 100 : 0
+          const netHours = calculateNetHours(updated.beg, updated.end, updated.pau)
           if (netHours > 0) {
             const workerIds = shift.shift_workers.map((w) => w.id)
-            if (workerIds.length > 0) {
-              await supabase.from('shift_workers').update({ std: netHours }).in('id', workerIds)
-              queryClient.setQueryData<ShiftWithDetails[]>(queryKeys.shifts(projectId), (prev) =>
-                (prev ?? []).map((s) =>
-                  s.id === shiftId
-                    ? { ...s, shift_workers: s.shift_workers.map((w) => ({ ...w, std: netHours })) }
-                    : s
-                )
-              )
-            }
             const equipmentIds = shift.shift_equipment.map((e) => e.id)
-            if (equipmentIds.length > 0) {
-              await supabase.from('shift_equipment').update({ std: netHours }).in('id', equipmentIds)
-              queryClient.setQueryData<ShiftWithDetails[]>(queryKeys.shifts(projectId), (prev) =>
-                (prev ?? []).map((s) =>
-                  s.id === shiftId
-                    ? { ...s, shift_equipment: s.shift_equipment.map((e) => ({ ...e, std: netHours })) }
-                    : s
-                )
+            stdSync = { workerIds, equipmentIds, value: netHours }
+            // Optimistisches Update für std
+            queryClient.setQueryData<ShiftWithDetails[]>(queryKeys.shifts(projectId), (prev) =>
+              (prev ?? []).map((s) =>
+                s.id === shiftId ? {
+                  ...s,
+                  shift_workers: s.shift_workers.map((w) => ({ ...w, std: netHours })),
+                  shift_equipment: s.shift_equipment.map((e) => ({ ...e, std: netHours })),
+                } : s
               )
-            }
+            )
           }
         }
       }
-    } catch {
+    }
+
+    const result = await updateShiftField(shiftId, { [field]: value }, stdSync)
+    if (!result.ok) {
       queryClient.setQueryData(queryKeys.shifts(projectId), previous)
       toast.error('Änderung konnte nicht gespeichert werden.')
     }
@@ -559,18 +537,8 @@ export default function ProjectDetailPage() {
       }))
     )
 
-    try {
-      const supabase = createClient()
-      const { error } = await supabase
-        .from('shift_workers')
-        .update({ [field]: value })
-        .eq('id', workerId)
-
-      if (error) {
-        queryClient.setQueryData(queryKeys.shifts(projectId), previous)
-        toast.error('Änderung konnte nicht gespeichert werden.')
-      }
-    } catch {
+    const result = await updateShiftWorker(workerId, { [field]: value })
+    if (!result.ok) {
       queryClient.setQueryData(queryKeys.shifts(projectId), previous)
       toast.error('Änderung konnte nicht gespeichert werden.')
     }
@@ -653,18 +621,8 @@ export default function ProjectDetailPage() {
       }))
     )
 
-    try {
-      const supabase = createClient()
-      const { error } = await supabase
-        .from('shift_equipment')
-        .update({ [field]: value })
-        .eq('id', equipmentId)
-
-      if (error) {
-        queryClient.setQueryData(queryKeys.shifts(projectId), previous)
-        toast.error('Änderung konnte nicht gespeichert werden.')
-      }
-    } catch {
+    const result = await updateShiftEquipment(equipmentId, { [field]: value })
+    if (!result.ok) {
       queryClient.setQueryData(queryKeys.shifts(projectId), previous)
       toast.error('Änderung konnte nicht gespeichert werden.')
     }

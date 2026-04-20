@@ -12,9 +12,9 @@ export function Providers({ children }: { children: React.ReactNode }) {
       new QueryClient({
         defaultOptions: {
           queries: {
-            staleTime: 5 * 60 * 1000,         // 5 Minuten — Daten gelten als frisch
+            staleTime: 60 * 1000,              // 1 Minute — schnellere Cross-Device-Synchronisation
             refetchInterval: 5 * 60 * 1000,   // Background-Refresh alle 5 Minuten
-            refetchOnWindowFocus: false,       // Kein Doppel-Fetch beim Tab-Wechsel
+            refetchOnWindowFocus: true,        // Refetch bei Tab-Focus — Cross-Device-Updates sichtbar
             retry: 1,
           },
         },

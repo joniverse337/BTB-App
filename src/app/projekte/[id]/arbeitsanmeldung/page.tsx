@@ -21,6 +21,7 @@ import { ProjectDetailHeader } from '@/components/project-detail-header'
 import { KWNavigation } from '@/components/kw-navigation'
 import { WorkNotificationTable } from '@/components/work-notification-table'
 import { createClient } from '@/lib/supabase'
+import { upsertWorkNotificationRow } from '@/lib/services/work-notifications-service'
 import { getKWsForRange, getCurrentKWIndex, toDateString } from '@/lib/kw-utils'
 import type { KWInfo } from '@/lib/kw-utils'
 import { toast } from 'sonner'
@@ -110,6 +111,15 @@ export default function ArbeitsanmeldungPage() {
   const [showOverwriteDialog, setShowOverwriteDialog] = useState(false)
   const [zoom, setZoom] = useState(75)
   const [localPrintedWeeks, setLocalPrintedWeeks] = useState<Set<string>>(new Set())
+  const [hasUnsavedInput, setHasUnsavedInput] = useState(false)
+
+  // Warnt den Nutzer wenn ungespeicherte Eingaben vorhanden sind
+  useEffect(() => {
+    if (!hasUnsavedInput) return
+    const handler = (e: BeforeUnloadEvent) => { e.preventDefault() }
+    window.addEventListener('beforeunload', handler)
+    return () => window.removeEventListener('beforeunload', handler)
+  }, [hasUnsavedInput])
 
   // printedWeeks: aus Server-Daten + lokalen Druckvorgängen
   const printedWeeks = useMemo(() => {
@@ -177,20 +187,15 @@ export default function ArbeitsanmeldungPage() {
     setAaExists(true)
   }
 
-  // Save a single row on blur
-  const handleSaveRow = async (row: WorkNotificationRow) => {
-    try {
-      const supabase = createClient()
-      const { id, ...rowData } = row
-      // Remove undefined id for new rows
-      const upsertData = id ? { id, ...rowData } : rowData
-
-      await supabase
-        .from('work_notifications')
-        .upsert(upsertData, { onConflict: 'project_id,year,calendar_week,weekday_nr' })
-    } catch {
+  // Save a single row via API route (Citrix-kompatibel, CSRF-geschützt)
+  const handleSaveRow = async (row: WorkNotificationRow): Promise<boolean> => {
+    const result = await upsertWorkNotificationRow(row)
+    if (!result.ok) {
       toast.error('Speichern fehlgeschlagen.')
+      return false
     }
+    setHasUnsavedInput(false)
+    return true
   }
 
   // Save field immediately with the new value (avoids stale-state race condition)
@@ -227,14 +232,13 @@ export default function ArbeitsanmeldungPage() {
     })
   }
 
-  // Update a field in a row (local state + save)
+  // Update a field in a row (local state only — blur triggers handleSaveRow)
   const handleUpdateRow = (weekdayNr: number, field: string, value: string | boolean | null) => {
+    setHasUnsavedInput(true)
     setRows((prev) =>
       prev.map((r) => {
         if (r.weekday_nr !== weekdayNr) return r
-        const updated = { ...r, [field]: value }
-        // Auto-save on blur is handled by the component calling handleSaveRow
-        return updated
+        return { ...r, [field]: value }
       })
     )
   }
@@ -275,7 +279,7 @@ export default function ArbeitsanmeldungPage() {
   }
 
   // Activate a day and optionally copy from the last active day before it
-  const handleAddDay = (weekdayNr: number, copyFromPrevious: boolean) => {
+  const handleAddDay = async (weekdayNr: number, copyFromPrevious: boolean) => {
     setActiveDays((prev) => new Set([...prev, weekdayNr]))
     if (copyFromPrevious) {
       setRows((prev) => {
@@ -301,6 +305,20 @@ export default function ArbeitsanmeldungPage() {
         if (newRow) handleSaveRow(newRow)
         return updated
       })
+    } else {
+      // Sofort in DB schreiben — leere Zeile markiert den Tag als vorhanden
+      const row = rows.find((r) => r.weekday_nr === weekdayNr)
+      if (row) {
+        const ok = await handleSaveRow(row)
+        if (!ok) {
+          // Save fehlgeschlagen — Tag wieder deaktivieren damit UI konsistent mit DB bleibt
+          setActiveDays((prev) => {
+            const next = new Set(prev)
+            next.delete(weekdayNr)
+            return next
+          })
+        }
+      }
     }
   }
 

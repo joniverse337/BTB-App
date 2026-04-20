@@ -61,6 +61,7 @@ function buildEmptyRows(projectId: string, week: KWInfo): WorkNotificationRow[] 
       track_work_enabled: false,
       betra_number: null,
       contacts_json: null,
+      is_active: false,
     }
   })
 }
@@ -171,20 +172,24 @@ export default function ArbeitsanmeldungPage() {
       const found = dbRows.find((d) => d.weekday_nr === emptyRow.weekday_nr)
       return found ? { ...emptyRow, ...found } : emptyRow
     })
+    // Nur Tage die explizit vom User aktiviert wurden (is_active=true)
     const existingNrs = new Set(
-      dbRows.filter((d) => d.id).map((d) => d.weekday_nr)
+      dbRows.filter((d) => d.id && d.is_active).map((d) => d.weekday_nr)
     )
     setActiveDays(existingNrs.size > 0 ? existingNrs : new Set())
     setRows(merged)
   }, [dbRows, activeWeek, projectId])
 
-  // Create AA for current KW (no eager DB write — first field blur saves)
-  const handleCreateAA = () => {
+  // Legt eine AA an und schreibt sofort alle 7 Platzhalter-Zeilen in die DB.
+  // is_active=false markiert sie als "noch nicht vom User aktiviert".
+  const handleCreateAA = async () => {
     const activeWeek = weeks[activeKWIndex]
     if (!activeWeek) return
-    setRows(buildEmptyRows(projectId, activeWeek))
+    const emptyRows = buildEmptyRows(projectId, activeWeek)
+    setRows(emptyRows)
     setActiveDays(new Set())
     setAaExists(true)
+    await Promise.all(emptyRows.map((row) => upsertWorkNotificationRow(row)))
   }
 
   // Save a single row via API route (Citrix-kompatibel, CSRF-geschützt)
@@ -257,7 +262,7 @@ export default function ArbeitsanmeldungPage() {
     })
     setRows((prev) => prev.map((r) =>
       r.weekday_nr === weekdayNr
-        ? { ...r, id: undefined, day_start: null, day_end: null, night_start: null, night_end: null,
+        ? { ...r, id: undefined, is_active: false, day_start: null, day_end: null, night_start: null, night_end: null,
             location: null, bauspitzen: '1', workers: '5', machines: null,
             work_description: null, site_manager: null,
             safety_plan_enabled: false, safety_plan_number: null,
@@ -273,6 +278,9 @@ export default function ArbeitsanmeldungPage() {
         .eq('year', activeWeek.year)
         .eq('calendar_week', activeWeek.kw)
         .eq('weekday_nr', weekdayNr)
+      // Platzhalter-Zeile neu schreiben damit AA-Existenz in DB erhalten bleibt
+      const placeholder = buildEmptyRows(projectId, activeWeek).find((r) => r.weekday_nr === weekdayNr)
+      if (placeholder) await upsertWorkNotificationRow(placeholder)
     } catch {
       toast.error('Fehler beim Entfernen des Tages.')
     }
@@ -291,6 +299,7 @@ export default function ArbeitsanmeldungPage() {
           r.weekday_nr === weekdayNr
             ? {
                 ...r,
+                is_active: true,
                 day_start: prevRow.day_start, day_end: prevRow.day_end,
                 night_start: prevRow.night_start, night_end: prevRow.night_end,
                 location: prevRow.location, bauspitzen: prevRow.bauspitzen,
@@ -306,12 +315,13 @@ export default function ArbeitsanmeldungPage() {
         return updated
       })
     } else {
-      // Sofort in DB schreiben — leere Zeile markiert den Tag als vorhanden
+      // is_active=true: dieser Tag ist explizit vom User aktiviert worden
       const row = rows.find((r) => r.weekday_nr === weekdayNr)
       if (row) {
-        const ok = await handleSaveRow(row)
+        const activeRow = { ...row, is_active: true }
+        setRows((prev) => prev.map((r) => r.weekday_nr === weekdayNr ? activeRow : r))
+        const ok = await handleSaveRow(activeRow)
         if (!ok) {
-          // Save fehlgeschlagen — Tag wieder deaktivieren damit UI konsistent mit DB bleibt
           setActiveDays((prev) => {
             const next = new Set(prev)
             next.delete(weekdayNr)

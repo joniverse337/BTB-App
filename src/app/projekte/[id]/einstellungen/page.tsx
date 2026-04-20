@@ -43,6 +43,7 @@ const DEMO_ROWS: WorkNotificationRow[] = Array.from({ length: 7 }, (_, i) => ({
   work_description: null, site_manager: null,
   safety_plan_enabled: false, safety_plan_number: null,
   track_work_enabled: false, betra_number: null, contacts_json: null,
+  is_active: true,
 }))
 
 // ZoomSlider-style logo size control

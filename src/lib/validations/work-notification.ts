@@ -23,6 +23,7 @@ export const upsertWorkNotificationSchema = z.object({
   track_work_enabled:   z.boolean(),
   betra_number:         z.string().max(100).nullable(),
   contacts_json:        z.string().max(50000).nullable(),
+  is_active:            z.boolean(),
 })
 
 export type UpsertWorkNotificationInput = z.infer<typeof upsertWorkNotificationSchema>
@@ -50,4 +51,5 @@ export interface WorkNotificationRow {
   track_work_enabled: boolean
   betra_number: string | null
   contacts_json: string | null
+  is_active: boolean
 }

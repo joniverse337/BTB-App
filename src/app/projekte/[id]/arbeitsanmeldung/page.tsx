@@ -189,7 +189,14 @@ export default function ArbeitsanmeldungPage() {
     setRows(emptyRows)
     setActiveDays(new Set())
     setAaExists(true)
-    await Promise.all(emptyRows.map((row) => upsertWorkNotificationRow(row)))
+    const results = await Promise.all(emptyRows.map((row) => upsertWorkNotificationRow(row)))
+    const failed = results.filter((r) => !r.ok).length
+    if (failed > 0) {
+      toast.error(`Arbeitsanmeldung konnte nicht angelegt werden (${failed}/${results.length} Zeilen fehlgeschlagen).`)
+      // Optimistischen State zurücksetzen, damit der User es erneut versuchen kann
+      setAaExists(false)
+      setRows([])
+    }
   }
 
   // Save a single row via API route (Citrix-kompatibel, CSRF-geschützt)

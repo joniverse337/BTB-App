@@ -181,6 +181,34 @@ input:-webkit-autofill:focus {
   transform: translateY(0);
 }
 
+/* AA-Tabelle: Tag-Buttons */
+.aa-add-btn {
+  padding: 2px 8px; border-radius: 3px;
+  border: 1px solid #bbb;
+  background: transparent; color: #2a3a6e;
+  font-size: 6.5pt; font-family: var(--font-ibm-plex-sans), sans-serif;
+  cursor: pointer; white-space: nowrap;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+.aa-add-btn:hover {
+  background: rgba(42,58,110,0.08);
+  border-color: #2a3a6e;
+  color: #1a2660;
+}
+.aa-copy-btn {
+  padding: 2px 8px; border-radius: 3px;
+  border: 1px solid #c8b87a;
+  background: transparent; color: #7a6018;
+  font-size: 6.5pt; font-family: var(--font-ibm-plex-sans), sans-serif;
+  cursor: pointer; white-space: nowrap;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+.aa-copy-btn:hover {
+  background: rgba(200,184,122,0.12);
+  border-color: #a89040;
+  color: #5a4410;
+}
+
 /* Hide number input spinners for btb card inputs */
 .btb-no-spin::-webkit-inner-spin-button,
 .btb-no-spin::-webkit-outer-spin-button {

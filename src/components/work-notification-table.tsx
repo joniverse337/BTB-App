@@ -346,14 +346,6 @@ function CheckOption({ label, checked, disabled, onSelect }: {
 }
 
 // --- Main component ---
-const ADD_BTN: React.CSSProperties = {
-  padding: '2px 8px', borderRadius: '3px', border: '1px dashed #bbb',
-  background: 'transparent', color: '#aaa', fontSize: '6.5pt',
-  fontFamily: "var(--font-ibm-plex-sans), sans-serif", cursor: 'pointer', whiteSpace: 'nowrap',
-}
-const COPY_BTN: React.CSSProperties = {
-  ...ADD_BTN, border: '1px dashed #c8b87a', color: '#b09040',
-}
 
 export function WorkNotificationTable({
   rows, week, project, logo, companyInfo, disabledDays, activeDays, equipmentCategories, projectContacts,
@@ -643,11 +635,11 @@ export function WorkNotificationTable({
                     <div style={{ minHeight: '52px', display: 'flex', alignItems: 'center' }}>
                       {!isDisabled && (
                         <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
-                          <button style={ADD_BTN} onClick={() => onAddDay(row.weekday_nr, false)}>
+                          <button className="aa-add-btn" onClick={() => onAddDay(row.weekday_nr, false)}>
                             + Arbeit hinzufügen
                           </button>
                           {hasPrevious && (
-                            <button style={COPY_BTN} onClick={() => onAddDay(row.weekday_nr, true)}>
+                            <button className="aa-copy-btn" onClick={() => onAddDay(row.weekday_nr, true)}>
                               Vom Vortag übernehmen
                             </button>
                           )}

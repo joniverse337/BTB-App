@@ -111,7 +111,6 @@ export default function ArbeitsanmeldungPage() {
   const [aaExists, setAaExists] = useState(false)
   const [showOverwriteDialog, setShowOverwriteDialog] = useState(false)
   const [zoom, setZoom] = useState(75)
-  const [localPrintedWeeks, setLocalPrintedWeeks] = useState<Set<string>>(new Set())
   const [hasUnsavedInput, setHasUnsavedInput] = useState(false)
 
   // Warnt den Nutzer wenn ungespeicherte Eingaben vorhanden sind
@@ -121,14 +120,6 @@ export default function ArbeitsanmeldungPage() {
     window.addEventListener('beforeunload', handler)
     return () => window.removeEventListener('beforeunload', handler)
   }, [hasUnsavedInput])
-
-  // printedWeeks: aus Server-Daten + lokalen Druckvorgängen
-  const printedWeeks = useMemo(() => {
-    const fromServer = new Set(
-      (notificationIndex ?? []).map(r => `${r.year}_${r.calendar_week}`)
-    )
-    return new Set([...fromServer, ...localPrintedWeeks])
-  }, [notificationIndex, localPrintedWeeks])
 
   // Compute weeks when project loads
   useEffect(() => {
@@ -487,13 +478,6 @@ export default function ArbeitsanmeldungPage() {
       await queryClient.invalidateQueries({
         queryKey: queryKeys.workNotificationsIndex(projectId),
       })
-      // Lokalen Druckstatus zurücksetzen
-      const key = `${activeWeek.year}_${activeWeek.kw}`
-      setLocalPrintedWeeks((prev) => {
-        const next = new Set([...prev])
-        next.delete(key)
-        return next
-      })
       toast.success('Arbeitsanmeldung gelöscht.')
     } catch {
       toast.error('Fehler beim Löschen.')
@@ -513,10 +497,6 @@ export default function ArbeitsanmeldungPage() {
     window.print()
     // Restore title after print dialog closes
     window.addEventListener('afterprint', () => { document.title = prevTitle }, { once: true })
-    if (activeWeek) {
-      const key = `${activeWeek.year}_${activeWeek.kw}`
-      setLocalPrintedWeeks((prev) => new Set([...prev, key]))
-    }
   }
 
   // Determine which days are out of range
@@ -531,23 +511,23 @@ export default function ArbeitsanmeldungPage() {
     }
   }
 
-  // Status-Rechteck für KW-Chips: gelber Rahmen = nicht gedruckt, gefüllt = gedruckt
+  // Status-Rechteck für KW-Chips: gelb gefüllt = AA vorhanden
   const renderWeekStatus = (week: KWInfo) => {
-    const key = `${week.year}_${week.kw}`
-    const printed = printedWeeks.has(key)
+    const hasAA = (notificationIndex ?? []).some(r => r.year === week.year && r.calendar_week === week.kw)
+    if (!hasAA) return null
     return (
       <div style={{
         marginTop: '4px',
         width: '52px', height: '12px',
-        border: printed ? 'none' : '1px solid #555',
-        background: printed ? '#e8c547' : 'transparent',
+        border: 'none',
+        background: '#e8c547',
         borderRadius: '2px',
         display: 'flex', alignItems: 'center', justifyContent: 'center',
       }}>
         <svg width="10" height="8" viewBox="0 0 10 8" fill="none">
           <polyline
             points="1,4 4,7 9,1"
-            stroke={printed ? '#1a2040' : '#555'}
+            stroke='#1a2040'
             strokeWidth="1.5"
             strokeLinecap="round"
             strokeLinejoin="round"

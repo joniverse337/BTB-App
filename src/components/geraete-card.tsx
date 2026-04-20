@@ -318,6 +318,7 @@ function CellInput({
   type,
   onSave,
   ariaLabel,
+  style,
 }: {
   value: string | null
   placeholder?: string
@@ -325,6 +326,7 @@ function CellInput({
   type?: 'text' | 'date'
   onSave: (val: string | null) => void
   ariaLabel?: string
+  style?: React.CSSProperties
 }) {
   const [localValue, setLocalValue] = useState(value ?? '')
 
@@ -345,7 +347,7 @@ function CellInput({
 
   if (!editable) {
     return (
-      <span style={READONLY_STYLE} aria-label={ariaLabel}>
+      <span style={{ ...READONLY_STYLE, ...style }} aria-label={ariaLabel}>
         {displayValue || ''}
       </span>
     )
@@ -364,7 +366,7 @@ function CellInput({
           onSave(val === '' ? null : val)
         }}
         onBlur={handleBlur}
-        style={INPUT_STYLE}
+        style={{ ...INPUT_STYLE, ...style }}
         aria-label={ariaLabel}
       />
     )
@@ -377,6 +379,7 @@ function CellInput({
       onChange={setLocalValue}
       onBlur={handleBlur}
       ariaLabel={ariaLabel}
+      style={style}
     />
   )
 }
@@ -410,22 +413,24 @@ function EquipmentRow({
 
   return (
     <tr>
-      <td style={TD_STYLE}>
+      <td style={{ ...TD_STYLE, borderLeft: '1px solid #eee' }}>
         <CellInput
           value={item.name}
           placeholder="Gerät..."
           editable={canEdit('name')}
           onSave={(v) => onUpdateField(item.id, 'name', v)}
           ariaLabel={`Geraetname ${item.name || ''}`}
+          style={{ fontWeight: 700, textAlign: 'center' }}
         />
       </td>
-      <td style={TD_STYLE}>
+      <td style={{ ...TD_STYLE, textAlign: 'center' }}>
         <CellInput
           value={item.nummer}
           placeholder="Nr..."
           editable={canEdit('nummer')}
           onSave={(v) => onUpdateField(item.id, 'nummer', v)}
           ariaLabel={`Geraetenummer ${item.name || ''}`}
+          style={{ fontWeight: 700, textAlign: 'center' }}
         />
       </td>
       <td style={TD_STYLE}>
@@ -755,8 +760,8 @@ export function GeraeteCard({
         >
           <thead>
             <tr style={{ background: headerBg }}>
-              <th style={{ ...TH_STYLE, width: status === 'baustelle' ? '26%' : '22%' }}>Gerät</th>
-              <th style={{ ...TH_STYLE, width: '14%' }}>Nr.</th>
+              <th style={{ ...TH_STYLE, width: status === 'baustelle' ? '26%' : '22%', borderLeft: '1px solid rgba(255,255,255,0.15)', textAlign: 'center' }}>Gerät</th>
+              <th style={{ ...TH_STYLE, width: '14%', textAlign: 'center' }}>Nr.</th>
               <th style={{ ...TH_STYLE, width: status === 'baustelle' ? '26%' : '20%' }}>
                 {status === 'baustelle' ? 'Standort' : status === 'frei' ? 'Abholort' : 'Lieferadresse'}
               </th>

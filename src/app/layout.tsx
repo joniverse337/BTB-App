@@ -30,10 +30,15 @@ export const metadata: Metadata = {
 // In der Middleware CSP sorgt 'strict-dynamic' dafür, dass alle dynamisch
 // nachgeladenen Scripts (Lazy-Loading, Code-Splitting) ebenfalls erlaubt sind.
 export default async function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
-  const nonce = (await headers()).get('x-nonce') ?? ''
+  const h = await headers()
+  const nonce = h.get('x-nonce') ?? ''
+  const csrfToken = h.get('x-csrf-token-value') ?? ''
 
   return (
     <html lang="de" className={`dark ${inter.variable} ${ibmPlexSans.variable}`} suppressHydrationWarning>
+      <head>
+        <meta name="csrf-token" content={csrfToken} />
+      </head>
       <body className="antialiased">
         <Providers>
           {children}

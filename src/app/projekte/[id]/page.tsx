@@ -165,7 +165,7 @@ function buildShiftPageDiv(shift: ShiftWithDetails, date: Date, project: Project
   <div class="spacer"></div>
 
   <div class="section">
-    <div class="st">Vorkommnisse / Behinderungen</div>
+    <div class="st">Sonstiges</div>
     <div class="textarea">${escHtml(shift.vor) || ''}</div>
   </div>
 

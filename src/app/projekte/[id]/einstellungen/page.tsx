@@ -619,7 +619,6 @@ export default function ProjectSettingsPage() {
                     }}
                     disabledDays={new Set()}
                     activeDays={new Set()}
-                    equipmentCategories={equipmentCategories}
                     projectContacts={contacts}
                     onLogoPositionChange={handleAaLogoPositionChange}
                     onLogoPositionSave={handleAaLogoPositionSave}

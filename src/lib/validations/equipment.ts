@@ -12,6 +12,7 @@ export interface EquipmentItem {
   project_id: string
   name: string | null
   nummer: string | null
+  aktueller_standort: string | null
   lieferadresse: string | null
   lieferdatum: string | null        // ISO date string (YYYY-MM-DD)
   anmerkungen: string | null
@@ -29,6 +30,7 @@ export const createEquipmentSchema = z.object({
   project_id: z.string().uuid(),
   name: z.string().max(500).nullable().optional(),
   nummer: z.string().max(200).nullable().optional(),
+  aktueller_standort: z.string().max(500).nullable().optional(),
   lieferadresse: z.string().max(1000).nullable().optional(),
   lieferdatum: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Ungültiges Datumsformat').nullable().optional(),
   anmerkungen: z.string().max(2000).nullable().optional(),
@@ -42,6 +44,7 @@ export type CreateEquipmentInput = z.infer<typeof createEquipmentSchema>
 export const updateEquipmentSchema = z.object({
   name: z.string().max(500).nullable().optional(),
   nummer: z.string().max(200).nullable().optional(),
+  aktueller_standort: z.string().max(500).nullable().optional(),
   lieferadresse: z.string().max(1000).nullable().optional(),
   lieferdatum: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Ungültiges Datumsformat').nullable().optional(),
   anmerkungen: z.string().max(2000).nullable().optional(),

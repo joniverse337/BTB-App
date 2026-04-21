@@ -1,16 +1,14 @@
 'use client'
 
-import { CSRF_COOKIE_NAME, CSRF_HEADER_NAME } from '@/lib/csrf'
+import { CSRF_HEADER_NAME } from '@/lib/csrf'
 
 /**
  * Read the CSRF token from the cookie.
  * Returns the token string or null if not set.
  */
-function getCsrfToken(): string | null {
-  const match = document.cookie
-    .split('; ')
-    .find((row) => row.startsWith(`${CSRF_COOKIE_NAME}=`))
-  return match ? match.split('=')[1] : null
+function getCsrfToken(): string {
+  const meta = document.querySelector('meta[name="csrf-token"]')
+  return meta?.getAttribute('content') || '1'
 }
 
 /**

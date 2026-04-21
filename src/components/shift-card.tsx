@@ -702,8 +702,8 @@ export function ShiftCard({
 
         {/* Vorkommnisse */}
         <div style={{ ...sectionStyle, flexShrink: 0 }}>
-          <div style={sectionTitleStyle}>Vorkommnisse / Behinderungen</div>
-          <PlainTextArea value={shift.vor || ''} onBlur={html => onUpdateShift(shift.id, 'vor', html)} placeholder="Behinderungen, Zwischenfälle..." minHeight="44px" />
+          <div style={sectionTitleStyle}>Sonstiges</div>
+          <PlainTextArea value={shift.vor || ''} onBlur={html => onUpdateShift(shift.id, 'vor', html)} placeholder="/" minHeight="44px" />
         </div>
 
         {/* Signature line (absolute bottom) */}

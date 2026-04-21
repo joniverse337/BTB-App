@@ -24,40 +24,22 @@ export function generateCsrfToken(): string {
   return Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('')
 }
 
-/**
- * Parse a cookie value from the raw Cookie header string.
- */
-function parseCookieValue(cookieHeader: string | null, name: string): string | undefined {
-  if (!cookieHeader) return undefined
-  for (const part of cookieHeader.split(';')) {
-    const [key, ...rest] = part.trim().split('=')
-    if (key.trim() === name) return rest.join('=').trim()
-  }
-  return undefined
-}
 
 /**
- * Validate the CSRF token from the request header against the cookie.
- * Works with both Request and NextRequest (Edge-compatible, no next/headers).
- * Returns an error response if validation fails, or null if valid.
+ * CSRF-Schutz via Custom-Header-Präsenzprüfung.
+ *
+ * Browser dürfen custom headers (x-csrf-token) bei cross-origin Requests
+ * nicht ohne CORS-Preflight senden — der Preflight schlägt gegen unsere API fehl.
+ * Eigene same-origin Requests senden den Header immer via csrfHeaders().
  */
 export function validateCsrfToken(
   request: Request
 ): NextResponse | null {
-  const cookieToken = parseCookieValue(request.headers.get('cookie'), CSRF_COOKIE_NAME)
-  const headerToken = request.headers.get(CSRF_HEADER_NAME)
+  const clientToken = request.headers.get(CSRF_HEADER_NAME)
 
-  if (!cookieToken || !headerToken) {
+  if (!clientToken) {
     return NextResponse.json(
       { error: 'CSRF-Token fehlt.' },
-      { status: 403 }
-    )
-  }
-
-  // Constant-time comparison to prevent timing attacks
-  if (!timingSafeEqual(cookieToken, headerToken)) {
-    return NextResponse.json(
-      { error: 'Ungültiger CSRF-Token.' },
       { status: 403 }
     )
   }
@@ -65,17 +47,3 @@ export function validateCsrfToken(
   return null // Valid
 }
 
-/**
- * Constant-time string comparison to prevent timing attacks.
- */
-function timingSafeEqual(a: string, b: string): boolean {
-  if (a.length !== b.length) return false
-  const encoder = new TextEncoder()
-  const bufA = encoder.encode(a)
-  const bufB = encoder.encode(b)
-  let result = 0
-  for (let i = 0; i < bufA.length; i++) {
-    result |= bufA[i] ^ bufB[i]
-  }
-  return result === 0
-}

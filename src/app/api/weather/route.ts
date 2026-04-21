@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { z } from 'zod'
 import { createAuthenticatedRoute } from '@/lib/api-utils'
 import { logger } from '@/lib/logger'
+import { WITTERUNG_OPTIONS } from '@/lib/validations/shift'
 
 const dateSchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Ungültiges Datumsformat (YYYY-MM-DD)')
 
@@ -36,17 +37,17 @@ async function geocode(address: string): Promise<{ lat: number; lon: number } | 
   return { lat: parseFloat(data[0].lat), lon: parseFloat(data[0].lon) }
 }
 
-// WMO weather code → Witterung option mapping
+// WMO weather code → Witterung option mapping (verwendet exakt die WITTERUNG_OPTIONS-Strings)
 function mapWmoToWitterung(code: number): string {
-  if (code === 0) return '☀️ Sonnig'
-  if (code <= 3) return '⛅ Wechselhaft'
-  if (code <= 48) return '🌫 Nebel'
-  if (code <= 67) return '🌧 Regen'
-  if (code <= 77) return '🌨 Schnee'
-  if (code <= 82) return '🌧 Regen'
-  if (code <= 86) return '🌨 Schnee'
-  if (code <= 99) return '⛅ Wechselhaft'
-  return '⛅ Wechselhaft'
+  if (code === 0) return WITTERUNG_OPTIONS[0]  // Sonnig
+  if (code <= 3)  return WITTERUNG_OPTIONS[1]  // Wechselhaft
+  if (code <= 48) return WITTERUNG_OPTIONS[7]  // Nebel
+  if (code <= 67) return WITTERUNG_OPTIONS[3]  // Regen
+  if (code <= 77) return WITTERUNG_OPTIONS[4]  // Schnee
+  if (code <= 82) return WITTERUNG_OPTIONS[3]  // Regen
+  if (code <= 86) return WITTERUNG_OPTIONS[4]  // Schnee
+  if (code <= 99) return WITTERUNG_OPTIONS[1]  // Wechselhaft
+  return WITTERUNG_OPTIONS[1]
 }
 
 // Fix 3: createAuthenticatedRoute erzwingt eingeloggten Nutzer (401 sonst)

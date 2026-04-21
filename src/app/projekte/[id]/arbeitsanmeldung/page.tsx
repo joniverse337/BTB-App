@@ -628,7 +628,6 @@ export default function ArbeitsanmeldungPage() {
                 companyInfo={companyInfo}
                 disabledDays={disabledDays}
                 activeDays={activeDays}
-                equipmentCategories={equipmentCategories}
                 projectContacts={projectContacts}
                 onUpdateRow={handleUpdateRow}
                 onBlurSave={handleBlurSave}

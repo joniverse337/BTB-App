@@ -230,10 +230,10 @@ export function BtbPreviewCard({
 
           <div className="mt-1.5">
             <div className="mb-0.5 border-b border-[#ddd] text-[clamp(4px,0.8vw,6.5pt)] font-bold uppercase tracking-widest text-[#888]">
-              Vorkommnisse / Behinderungen
+              Sonstiges
             </div>
             <div className="rounded border border-[#e8e8e8] bg-[#fafafa] p-1 text-[clamp(4px,0.7vw,6pt)] text-[#999]">
-              Behinderungen...
+              /
             </div>
           </div>
         </div>

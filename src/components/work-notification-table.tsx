@@ -1,7 +1,6 @@
 'use client'
 
 import { useEffect, useRef, useCallback, useState } from 'react'
-import { createPortal } from 'react-dom'
 import { Plus, X } from 'lucide-react'
 import { ArbeitsZeitCell } from '@/components/aa-time-input'
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover'
@@ -26,7 +25,6 @@ interface WorkNotificationTableProps {
   onLogoPositionSave?: (x: number, y: number) => void
   disabledDays: Set<number>
   activeDays: Set<number>
-  equipmentCategories?: string[]
   projectContacts?: ProjectContact[]
   onUpdateRow: (weekdayNr: number, field: string, value: string | boolean | null) => void
   onBlurSave: (weekdayNr: number) => void
@@ -156,36 +154,16 @@ function slotsToValue(slots: string[]): string | null {
 }
 
 function MachineListCell({
-  value, equipmentCategories, disabled, onChange, onBlur,
+  value, disabled, onChange, onBlur,
 }: {
   value: string | null
-  equipmentCategories: string[]
   disabled: boolean
   onChange: (v: string | null) => void
   onBlur: () => void
 }) {
   const [slots, setSlots] = useState<string[]>(() => slotsFromValue(value))
-  const [pickerIndex, setPickerIndex] = useState<number | null>(null)
-  const [pickerPos, setPickerPos] = useState<{ top: number; left: number } | null>(null)
-  const btnRefs = useRef<(HTMLButtonElement | null)[]>([])
-  const pickerRef = useRef<HTMLDivElement>(null)
 
-  // Sync from outside (e.g. initial load / copy-from-previous)
   useEffect(() => { setSlots(slotsFromValue(value)) }, [value])
-
-  // Close picker on outside click
-  useEffect(() => {
-    if (pickerIndex === null) return
-    const handle = (e: MouseEvent) => {
-      const btn = btnRefs.current[pickerIndex!]
-      if (
-        pickerRef.current && !pickerRef.current.contains(e.target as Node) &&
-        btn && !btn.contains(e.target as Node)
-      ) setPickerIndex(null)
-    }
-    document.addEventListener('mousedown', handle)
-    return () => document.removeEventListener('mousedown', handle)
-  }, [pickerIndex])
 
   const updateSlot = useCallback((i: number, text: string) => {
     const next = [...slots]
@@ -194,90 +172,24 @@ function MachineListCell({
     onChange(slotsToValue(next))
   }, [slots, onChange])
 
-  const pickForSlot = useCallback((i: number, cat: string) => {
-    updateSlot(i, cat)
-    onBlur()
-    setPickerIndex(null)
-  }, [updateSlot, onBlur])
-
-  const openPicker = (i: number) => {
-    const btn = btnRefs.current[i]
-    if (btn) {
-      const rect = btn.getBoundingClientRect()
-      setPickerPos({ top: rect.bottom + window.scrollY + 4, left: rect.left + window.scrollX })
-    }
-    setPickerIndex(prev => prev === i ? null : i)
-  }
-
   return (
     <div style={{ height: '100%', padding: '2px 3px', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', justifyContent: 'space-around', overflow: 'hidden' }}>
       {slots.map((slot, i) => (
-        <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '3px', minHeight: 0 }}>
-          {/* Plus button per line */}
-          {!disabled && (
-            <button
-              ref={el => { btnRefs.current[i] = el }}
-              data-no-print="true"
-              onClick={() => openPicker(i)}
-              style={{
-                width: '11px', height: '11px', borderRadius: '50%', flexShrink: 0,
-                border: `1px solid ${pickerIndex === i ? '#555' : '#aaa'}`,
-                background: pickerIndex === i ? '#e0e0e0' : 'transparent',
-                cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                fontSize: '8pt', color: '#777', padding: 0, lineHeight: 1,
-              }}
-            >+</button>
-          )}
-          {/* Inline text input */}
-          <input
-            value={slot}
-            placeholder=""
-            disabled={disabled}
-            onChange={e => updateSlot(i, e.target.value)}
-            onBlur={onBlur}
-            style={{
-              flex: 1, minWidth: 0, border: 'none', borderBottom: '1px solid #ccc',
-              background: 'transparent', outline: 'none',
-              fontSize: '6pt', fontFamily: 'var(--font-ibm-plex-sans), sans-serif',
-              color: '#222', padding: '0 2px', lineHeight: 1.4,
-            }}
-          />
-        </div>
-      ))}
-
-      {/* Picker portal */}
-      {pickerIndex !== null && pickerPos && typeof document !== 'undefined' && createPortal(
-        <div
-          ref={pickerRef}
-          data-no-print="true"
+        <input
+          key={i}
+          value={slot}
+          placeholder=""
+          disabled={disabled}
+          onChange={e => updateSlot(i, e.target.value)}
+          onBlur={onBlur}
           style={{
-            position: 'absolute', top: pickerPos.top, left: pickerPos.left,
-            zIndex: 9999, background: '#fff', border: '1px solid #ddd',
-            borderRadius: '8px', padding: '8px', boxShadow: '0 4px 16px rgba(0,0,0,0.15)',
-            minWidth: '160px', maxWidth: '220px',
-            fontFamily: 'var(--font-ibm-plex-sans), sans-serif',
+            minWidth: 0, border: 'none', borderBottom: '1px solid #ccc',
+            background: 'transparent', outline: 'none',
+            fontSize: '6pt', fontFamily: 'var(--font-ibm-plex-sans), sans-serif',
+            color: '#222', padding: '0 2px', lineHeight: 1.4, width: '100%',
           }}
-        >
-          {equipmentCategories.length > 0 && (
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
-              {equipmentCategories.map(cat => (
-                <button key={cat} onClick={() => pickForSlot(pickerIndex!, cat)} style={{
-                  padding: '3px 10px', borderRadius: '99px',
-                  border: '1px solid #ddd', background: '#f5f5f5', color: '#333',
-                  fontSize: '7pt', cursor: 'pointer', whiteSpace: 'nowrap',
-                  fontFamily: 'var(--font-ibm-plex-sans), sans-serif',
-                }}>
-                  {cat}
-                </button>
-              ))}
-            </div>
-          )}
-          {equipmentCategories.length === 0 && (
-            <span style={{ fontSize: '7pt', color: '#aaa' }}>Keine Geräte in Projekteinstellungen hinterlegt.</span>
-          )}
-        </div>,
-        document.body
-      )}
+        />
+      ))}
     </div>
   )
 }
@@ -348,7 +260,7 @@ function CheckOption({ label, checked, disabled, onSelect }: {
 // --- Main component ---
 
 export function WorkNotificationTable({
-  rows, week, project, logo, companyInfo, disabledDays, activeDays, equipmentCategories, projectContacts,
+  rows, week, project, logo, companyInfo, disabledDays, activeDays, projectContacts,
   onUpdateRow, onBlurSave, onFieldBlur, onClearShift, onCheckboxChange, onAddDay, onRemoveDay, onSetShiftTimes,
   onLogoPositionChange, onLogoPositionSave,
 }: WorkNotificationTableProps) {
@@ -385,8 +297,6 @@ export function WorkNotificationTable({
 
   const firma = companyInfo.name || project?.firm || 'Firmenname'
   const adr = companyInfo.adr || project?.adr || ''
-  const equipCats = equipmentCategories ?? []
-
   return (
     <div
       ref={containerRef}
@@ -512,7 +422,6 @@ export function WorkNotificationTable({
                     <td style={{ ...TD_STYLE, ...COL_STYLES.maschinen, height: '1px', padding: 0 }}>
                       <MachineListCell
                         value={row.machines}
-                        equipmentCategories={equipCats}
                         disabled={isDisabled}
                         onChange={v => onUpdateRow(row.weekday_nr, 'machines', v)}
                         onBlur={() => onBlurSave(row.weekday_nr)}

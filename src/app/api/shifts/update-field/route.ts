@@ -4,6 +4,7 @@ import { createAuthenticatedRoute, parseJsonBody } from '@/lib/api-utils'
 import { isMutationRateLimited } from '@/lib/rate-limit'
 import { validateCsrfToken } from '@/lib/csrf'
 import { updateShiftSchema } from '@/lib/validations/shift-update'
+import { logger } from '@/lib/logger'
 
 const requestSchema = z.object({
   id:                  z.string().uuid(),
@@ -41,6 +42,7 @@ export const POST = createAuthenticatedRoute(async (request, { user, supabase })
     .eq('id', id)
 
   if (error) {
+    logger.error('shifts.updateField.supabase', `code=${error.code} msg=${error.message} fields=${JSON.stringify(Object.keys(fields))}`)
     return NextResponse.json({ error: 'Speichern fehlgeschlagen.' }, { status: 500 })
   }
 

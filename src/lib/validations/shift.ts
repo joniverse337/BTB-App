@@ -40,14 +40,14 @@ export interface ShiftWithDetails extends Shift {
 }
 
 export const WITTERUNG_OPTIONS = [
-  '\u2600\uFE0F Sonnig',
-  '\u26C5 Wechselhaft',
-  '\u2601\uFE0F Bew\u00F6lkt',
-  '\uD83C\uDF27 Regen',
-  '\uD83C\uDF28 Schnee',
-  '\u2744\uFE0F Frost',
-  '\uD83D\uDCA8 Windig',
-  '\uD83C\uDF2B Nebel',
+  '☀️ Sonnig',
+  '⛅ Wechselhaft',
+  '☁️ Bewölkt',
+  '🌧 Regen',
+  '🌨 Schnee',
+  '❄️ Frost',
+  '💨 Windig',
+  '🌫 Nebel',
 ] as const
 
 export const BODENZUSTAND_OPTIONS = [

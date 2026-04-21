@@ -312,6 +312,12 @@ input:-webkit-autofill:focus {
     color: #222 !important;
   }
 
+  /* Placeholder-Text beim Druck ausblenden */
+  input::placeholder,
+  textarea::placeholder {
+    color: transparent !important;
+  }
+
   /* Schritt 7: GeraeteBoard — Spacer und Bundle-Zoom zurücksetzen, Karten untereinander */
   .geraete-board {
     overflow: visible !important;

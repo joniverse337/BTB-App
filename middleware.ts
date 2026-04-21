@@ -46,6 +46,10 @@ export async function middleware(request: NextRequest) {
   // Inline-<script>-Tags anwendet (Hydration, Chunk-Loading, etc.)
   const requestHeaders = new Headers(request.headers)
   requestHeaders.set('x-nonce', nonce)
+  // CSRF-Token früh in requestHeaders setzen — wird von setAll weitergegeben und
+  // ist damit via headers() in Server Components lesbar (z.B. Root-Layout für Meta-Tag)
+  const csrfToken = request.cookies.get(CSRF_COOKIE_NAME)?.value ?? generateCsrfToken()
+  requestHeaders.set('x-csrf-token-value', csrfToken)
 
   // Rate limit auth pages (POST only — schützt vor Brute-Force, nicht vor normalen Seitenaufrufen)
   if (isAuthRoute && request.method === 'POST') {
@@ -124,15 +128,13 @@ export async function middleware(request: NextRequest) {
     return response
   }
 
-  // CSRF-Cookie setzen (nur wenn noch nicht vorhanden)
-  if (!request.cookies.get(CSRF_COOKIE_NAME)) {
-    supabaseResponse.cookies.set(CSRF_COOKIE_NAME, generateCsrfToken(), {
-      httpOnly: false, // Client muss den Wert lesen können
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
-      path: '/',
-    })
-  }
+  // CSRF-Cookie in Response setzen (wird im Browser gespeichert, für Folge-Requests)
+  supabaseResponse.cookies.set(CSRF_COOKIE_NAME, csrfToken, {
+    httpOnly: false, // Client muss den Wert lesen können
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'strict',
+    path: '/',
+  })
 
   // CSP nach Supabase-Verarbeitung setzen — setAll kann supabaseResponse ersetzt haben
   supabaseResponse.headers.set('Content-Security-Policy', csp)

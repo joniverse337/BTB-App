@@ -16,6 +16,16 @@ const nextConfig: NextConfig = {
         ],
       },
       {
+        // Image-Optimierung: explizit HSTS setzen (CDN-Cache liefert sonst keinen HSTS-Header)
+        source: '/_next/image',
+        headers: [
+          {
+            key: 'Strict-Transport-Security',
+            value: 'max-age=63072000; includeSubDomains; preload',
+          },
+        ],
+      },
+      {
         // Auth-Seiten: nie cachen (kein Proxy-Cache, kein Browser-Cache)
         source: '/(login|register|reset-password|reset-password/new)',
         headers: [

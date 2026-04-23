@@ -446,4 +446,32 @@ input:-webkit-autofill:focus {
   body:has(.btb-print-active) .btb-print-active .paper-print-target * {
     visibility: visible !important;
   }
+
+  /* BTB KW-Druck — data-kw-print-index markiert alle zu druckenden Karten */
+  body.btb-kw-printing .paper-print-target {
+    visibility: hidden !important;
+    position: static !important;
+  }
+  body.btb-kw-printing [data-kw-print-index] .paper-print-target {
+    visibility: visible !important;
+    position: absolute !important;
+    left: 0 !important;
+  }
+  body.btb-kw-printing [data-kw-print-index] .paper-print-target * {
+    visibility: visible !important;
+  }
+  body.btb-kw-printing [data-kw-print-index="0"]  .paper-print-target { top: calc(0  * 297mm) !important; }
+  body.btb-kw-printing [data-kw-print-index="1"]  .paper-print-target { top: calc(1  * 297mm) !important; }
+  body.btb-kw-printing [data-kw-print-index="2"]  .paper-print-target { top: calc(2  * 297mm) !important; }
+  body.btb-kw-printing [data-kw-print-index="3"]  .paper-print-target { top: calc(3  * 297mm) !important; }
+  body.btb-kw-printing [data-kw-print-index="4"]  .paper-print-target { top: calc(4  * 297mm) !important; }
+  body.btb-kw-printing [data-kw-print-index="5"]  .paper-print-target { top: calc(5  * 297mm) !important; }
+  body.btb-kw-printing [data-kw-print-index="6"]  .paper-print-target { top: calc(6  * 297mm) !important; }
+  body.btb-kw-printing [data-kw-print-index="7"]  .paper-print-target { top: calc(7  * 297mm) !important; }
+  body.btb-kw-printing [data-kw-print-index="8"]  .paper-print-target { top: calc(8  * 297mm) !important; }
+  body.btb-kw-printing [data-kw-print-index="9"]  .paper-print-target { top: calc(9  * 297mm) !important; }
+  body.btb-kw-printing [data-kw-print-index="10"] .paper-print-target { top: calc(10 * 297mm) !important; }
+  body.btb-kw-printing [data-kw-print-index="11"] .paper-print-target { top: calc(11 * 297mm) !important; }
+  body.btb-kw-printing [data-kw-print-index="12"] .paper-print-target { top: calc(12 * 297mm) !important; }
+  body.btb-kw-printing [data-kw-print-index="13"] .paper-print-target { top: calc(13 * 297mm) !important; }
 }

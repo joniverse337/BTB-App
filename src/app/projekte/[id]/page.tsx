@@ -39,167 +39,6 @@ function getStoredZoom(): number {
   return ZOOM_DEFAULT
 }
 
-function escHtml(str: string | null | undefined): string {
-  if (!str) return ''
-  return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#x27;')
-}
-
-const PRINT_STYLES = `
-@page { size: A4 portrait; margin: 0; }
-* { margin: 0; padding: 0; box-sizing: border-box; print-color-adjust: exact; -webkit-print-color-adjust: exact; }
-body { font-family: 'IBM Plex Sans', sans-serif; font-size: 9.5pt; color: #222; }
-.page { width: 210mm; height: 297mm; padding: 7mm 9mm 22mm 9mm; position: relative; }
-.header { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2.5px solid #1a2040; padding-bottom: 6px; margin-bottom: 6px; }
-.firm { font-family: 'Inter', sans-serif; font-weight: 800; font-size: 15pt; color: #1a2040; }
-.firm-adr { font-size: 8pt; color: #666; margin-top: 2px; }
-.title { font-size: 12pt; font-weight: 700; color: #1a2040; text-transform: uppercase; letter-spacing: 0.5px; }
-.st { font-size: 7.5pt; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; color: #888; border-bottom: 1px solid #ddd; padding-bottom: 2px; margin-bottom: 5px; }
-.lbl { font-size: 7.5pt; color: #666; display: block; margin-bottom: 1px; }
-.val { font-size: 9pt; padding: 1px 2px; }
-.val-name { font-size: 9.5pt; font-weight: 600; padding: 1px 2px; }
-.grid3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 7px; margin-bottom: 5px; }
-.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; }
-table { width: 100%; border-collapse: collapse; font-size: 8.5pt; }
-th { background: #1a2040; color: #fff; padding: 2px 5px; text-align: left; font-size: 7pt; letter-spacing: 0.5px; }
-td { padding: 2px 5px; border-bottom: 1px solid #eee; }
-.textarea { border: 1px solid #e8e8e8; border-radius: 3px; background: #fafafa; padding: 4px 5px; font-size: 9pt; min-height: 40px; white-space: pre-wrap; }
-.sig { position: absolute; bottom: 7mm; left: 9mm; right: 9mm; display: grid; grid-template-columns: 1fr 1fr; gap: 30px; }
-.sig-line { border-top: 1px solid #999; margin-bottom: 3px; height: 16px; }
-.sig-label { font-size: 8pt; color: #666; }
-.spacer { height: 1.2em; }
-.section { margin-bottom: 5px; }
-.watermark { position: absolute; pointer-events: none; opacity: 0.3; transform: translate(-50%, -50%); }
-`
-
-function buildShiftPageDiv(shift: ShiftWithDetails, date: Date, project: Project | null, pageBreakAfter = false, logo?: { url: string; x: number; y: number; size: number } | null): string {
-  const isNight = shift.typ === 'nacht'
-  const dateLabel = isNight ? formatNightShiftDate(date) : formatCardDate(date)
-  const schichtLabel = isNight ? 'Nachtschicht' : 'Tagschicht'
-  const schichtColor = isNight ? '#4a7cf7' : '#e8a020'
-  const netHours = calculateNetHours(shift.beg, shift.end, shift.pau)
-
-  const workersHtml = shift.shift_workers.map(w =>
-    `<tr><td>${escHtml(w.beruf)}</td><td style="text-align:center">${w.anz}</td><td style="text-align:center">${w.std}</td></tr>`
-  ).join('')
-  const totWorkers = shift.shift_workers.reduce((s, w) => s + (parseFloat(String(w.std ?? 0)) || 0) * (w.anz || 1), 0)
-
-  const equipHtml = shift.shift_equipment.map(e =>
-    `<tr><td>${escHtml(e.typ)}</td><td style="text-align:center">${e.anz}</td><td style="text-align:center">${e.std}</td></tr>`
-  ).join('')
-  const totEquip = shift.shift_equipment.reduce((s, e) => s + (parseFloat(String(e.std ?? 0)) || 0) * (e.anz || 1), 0)
-
-  const logoHtml = logo ? `<img class="watermark" src="${escHtml(logo.url)}" style="left:${logo.x * 100}%;top:${logo.y * 100}%;width:${logo.size * 100}%" alt="" />` : ''
-
-  return `<div class="page"${pageBreakAfter ? ' style="page-break-after:always"' : ''}>${logoHtml}
-  <div class="header">
-    <div>
-      <div class="firm">${escHtml(project?.firm) || 'Firmenname'}</div>
-      ${project?.adr ? `<div class="firm-adr">${escHtml(project.adr)}</div>` : ''}
-    </div>
-    <div style="text-align:right">
-      <div class="title">Bautagesbericht &nbsp; ${escHtml(dateLabel)}</div>
-      <div style="font-size:7.5pt;color:${schichtColor};font-weight:600;margin-top:2px">${schichtLabel}</div>
-    </div>
-  </div>
-
-  <div class="grid3">
-    <div class="section">
-      <div class="st">Projekt</div>
-      <div><span class="lbl">Name</span><div class="val-name">${escHtml(project?.name) || '\u2014'}</div></div>
-      <div><span class="lbl">Kostenstelle</span><div class="val">${escHtml(project?.nr) || '\u2014'}</div></div>
-      <div><span class="lbl">Auftraggeber</span><div class="val">${escHtml(project?.ag) || '\u2014'}</div></div>
-    </div>
-    <div class="section">
-      <div class="st">Wetter</div>
-      <div><span class="lbl">Temperatur</span><div class="val">${shift.temp != null ? shift.temp + ' \u00B0C' : '\u2014'}</div></div>
-      <div><span class="lbl">Witterung</span><div class="val">${escHtml(shift.wit) || '\u2014'}</div></div>
-      <div><span class="lbl">Bodenzustand</span><div class="val">${escHtml(shift.bod) || '\u2014'}</div></div>
-    </div>
-    <div class="section">
-      <div class="st">Arbeitszeit</div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:5px;margin-bottom:4px">
-        <div><span class="lbl">Beginn</span><div class="val">${shift.beg || '\u2014'}</div></div>
-        <div><span class="lbl">Ende</span><div class="val">${shift.end || '\u2014'}</div></div>
-      </div>
-      <div><span class="lbl">Pause</span><div class="val">${shift.pau != null ? shift.pau + ' Min.' : '\u2014'}</div></div>
-      <div><span class="lbl">Nettostunden</span><div class="val">${netHours > 0 ? netHours + ' h' : '\u2014'}</div></div>
-    </div>
-  </div>
-
-  <div class="spacer"></div>
-
-  <div class="section" style="display:flex;align-items:baseline;gap:8px;border-bottom:2px solid #1a2040;padding-bottom:2px;">
-    <span class="st" style="border-bottom:none;padding-bottom:0;margin-bottom:0;white-space:nowrap;flex-shrink:0;color:#1a2040;">Örtlichkeit:</span>
-    <span class="val">${escHtml(shift.gl) || ''}</span>
-    ${shift.kv || shift.kb ? `<span class="val" style="color:#888;white-space:nowrap">km\u00a0${escHtml(shift.kv) || '\u2014'}\u2013${escHtml(shift.kb) || '\u2014'}</span>` : ''}
-  </div>
-
-  <div class="spacer"></div>
-
-  <div class="grid2">
-    <div class="section">
-      <table>
-        <thead><tr><th>Personal</th><th style="width:42px">Anz</th><th style="width:50px">Std</th></tr></thead>
-        <tbody>${workersHtml || '<tr><td colspan="3" style="color:#999;font-style:italic">Keine Einträge</td></tr>'}</tbody>
-        ${totWorkers > 0 ? `<tfoot><tr style="background:#f5f5f5"><td colspan="2" style="padding:2px 5px;font-size:7pt;font-weight:600">Gesamt</td><td style="padding:2px 5px;font-size:7pt;font-weight:700;text-align:right">${Math.round(totWorkers * 100) / 100} h</td></tr></tfoot>` : ''}
-      </table>
-    </div>
-    <div class="section">
-      <table>
-        <thead><tr><th>Maschinen & Gerät</th><th style="width:42px">Anz</th><th style="width:50px">Std</th></tr></thead>
-        <tbody>${equipHtml || '<tr><td colspan="3" style="color:#999;font-style:italic">Keine Einträge</td></tr>'}</tbody>
-        ${totEquip > 0 ? `<tfoot><tr style="background:#f5f5f5"><td colspan="2" style="padding:2px 5px;font-size:7pt;font-weight:600">Gesamt</td><td style="padding:2px 5px;font-size:7pt;font-weight:700;text-align:right">${Math.round(totEquip * 100) / 100} h</td></tr></tfoot>` : ''}
-      </table>
-    </div>
-  </div>
-
-  <div class="spacer"></div>
-
-  <div class="section">
-    <div class="st">Ausgeführte Arbeiten</div>
-    <div class="textarea">${escHtml(shift.arb) || ''}</div>
-  </div>
-
-  <div class="spacer"></div>
-
-  <div class="section">
-    <div class="st">Sonstiges</div>
-    <div class="textarea">${escHtml(shift.vor) || ''}</div>
-  </div>
-
-  <div class="sig">
-    <div><div class="sig-line"></div><div class="sig-label">Auftragnehmer</div></div>
-    <div><div class="sig-line"></div><div class="sig-label">Auftraggeber</div></div>
-  </div>
-</div>`
-}
-
-// The popup inherits the opener's CSP. With a nonce in style-src-elem,
-// unsafe-inline is ignored — so we must pass the same nonce to <style> and <script>.
-function getCspNonce(): string {
-  if (typeof document === 'undefined') return ''
-  return (document.querySelector<HTMLScriptElement>('script[nonce]'))?.nonce ?? ''
-}
-
-function buildShiftPrintHtml(shift: ShiftWithDetails, date: Date, project: Project | null, logo?: { url: string; x: number; y: number; size: number } | null, nonce = ''): string {
-  const isNight = shift.typ === 'nacht'
-  const dateLabel = isNight ? formatNightShiftDate(date) : formatCardDate(date)
-  const n = nonce ? ` nonce="${nonce}"` : ''
-  return `<!DOCTYPE html>
-<html lang="de">
-<head>
-<meta charset="UTF-8">
-<title>BTB - ${escHtml(project?.name)} - ${dateLabel}</title>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
-<style${n}>${PRINT_STYLES}</style>
-</head>
-<body>
-${buildShiftPageDiv(shift, date, project, false, logo)}
-<script${n}>window.onload = function() { window.print(); }<\/script>
-</body>
-</html>`
-}
-
 export default function ProjectDetailPage() {
   const params = useParams()
   const projectId = params.id as string
@@ -659,33 +498,22 @@ export default function ProjectDetailPage() {
       return
     }
 
-    const pages = kwShifts.map(({ shift, date }, i) =>
-      buildShiftPageDiv(shift, date, project, i < kwShifts.length - 1, projectLogo)
-    ).join('\n')
+    const elements: HTMLElement[] = []
+    kwShifts.forEach(({ shift }, i) => {
+      const el = document.querySelector<HTMLElement>(`[data-shift-id="${shift.id}"]`)
+      if (el) { el.dataset.kwPrintIndex = String(i); elements.push(el) }
+    })
 
-    const nonce = getCspNonce()
-    const n = nonce ? ` nonce="${nonce}"` : ''
-    const fullHtml = `<!DOCTYPE html>
-<html lang="de">
-<head>
-<meta charset="UTF-8">
-<title>BTB - ${escHtml(project?.name)} - KW ${activeWeek.kw}</title>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
-<style${n}>${PRINT_STYLES}</style>
-</head>
-<body>
-${pages}
-<script${n}>window.onload = function() { window.print(); }<\/script>
-</body>
-</html>`
+    const prevTitle = document.title
+    document.title = `BTB KW ${activeWeek.kw}`
+    document.body.classList.add('btb-kw-printing')
+    window.print()
 
-    const win = window.open('', '_blank')
-    if (!win) {
-      toast.warning('Pop-up-Blocker aktiv. Bitte erlaube Pop-ups für diese Seite.')
-      return
-    }
-    win.document.write(fullHtml)
-    win.document.close()
+    window.addEventListener('afterprint', () => {
+      document.title = prevTitle
+      document.body.classList.remove('btb-kw-printing')
+      elements.forEach(el => delete el.dataset.kwPrintIndex)
+    }, { once: true })
   }
 
   // --- Render ---

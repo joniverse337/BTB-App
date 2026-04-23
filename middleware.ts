@@ -130,7 +130,7 @@ export async function middleware(request: NextRequest) {
 
   // CSRF-Cookie in Response setzen (wird im Browser gespeichert, für Folge-Requests)
   supabaseResponse.cookies.set(CSRF_COOKIE_NAME, csrfToken, {
-    httpOnly: false, // Client muss den Wert lesen können
+    httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
     sameSite: 'strict',
     path: '/',

@@ -304,7 +304,7 @@ export function CompanySection() {
     try {
       const response = await fetch('/api/companies/join', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: csrfHeaders({ 'Content-Type': 'application/json' }),
         body: JSON.stringify(data),
       })
 

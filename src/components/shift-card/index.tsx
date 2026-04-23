@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useRef, useEffect } from 'react'
-import type { ShiftWithDetails, ShiftWorker, ShiftEquipment } from '@/lib/validations/shift'
+import type { ShiftWithDetails } from '@/lib/validations/shift'
 import type { Project } from '@/lib/validations/project'
 import {
   WITTERUNG_OPTIONS,
@@ -11,325 +11,10 @@ import {
 } from '@/lib/validations/shift'
 import { formatCardDate, formatNightShiftDate, calculateNetHours } from '@/lib/kw-utils'
 import { inputStyle, labelStyle, sectionTitleStyle, sectionStyle } from '@/components/shift-card-styles'
-
-function parseTimeInput(raw: string): string {
-  const digits = raw.replace(/\D/g, '')
-  if (!digits) return ''
-  let h: number, m: number
-  if (digits.length <= 2) {
-    h = parseInt(digits, 10); m = 0
-  } else if (digits.length === 3) {
-    h = parseInt(digits[0], 10); m = parseInt(digits.slice(1), 10)
-  } else {
-    h = parseInt(digits.slice(0, 2), 10); m = parseInt(digits.slice(2, 4), 10)
-  }
-  h = Math.min(23, Math.max(0, isNaN(h) ? 0 : h))
-  m = Math.min(59, Math.max(0, isNaN(m) ? 0 : m))
-  return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`
-}
-
-function TimeInput({
-  value,
-  onBlur,
-}: {
-  value: string
-  onChange: (v: string) => void
-  onBlur: (v: string) => void
-}) {
-  const [localVal, setLocalVal] = useState(value ? value.slice(0, 5) : value)
-  const [open, setOpen] = useState(false)
-  const wrapRef = useRef<HTMLDivElement>(null)
-  const activeHourRef = useRef<HTMLDivElement>(null)
-
-  useEffect(() => { setLocalVal(value ? value.slice(0, 5) : value) }, [value])
-
-  // scroll active hour into view when popup opens
-  useEffect(() => {
-    if (open && activeHourRef.current) {
-      activeHourRef.current.scrollIntoView({ block: 'center' })
-    }
-  }, [open])
-
-  const curH = localVal ? parseInt(localVal.split(':')[0], 10) : -1
-  const curM = localVal ? parseInt(localVal.split(':')[1], 10) : -1
-
-  const commit = (h: number, m: number) => {
-    const result = `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`
-    setLocalVal(result)
-    setOpen(false)
-    onBlur(result)
-  }
-
-  const handleTextBlur = () => {
-    const normalized = parseTimeInput(localVal)
-    setLocalVal(normalized)
-    setOpen(false)
-    onBlur(normalized)
-  }
-
-  const cellStyle = (active: boolean): React.CSSProperties => ({
-    padding: '3px 0', textAlign: 'center', cursor: 'pointer',
-    fontSize: '10pt', fontFamily: "var(--font-ibm-plex-sans), sans-serif",
-    background: active ? '#1a2040' : 'transparent',
-    color: active ? '#fff' : '#333',
-    fontWeight: active ? 700 : 400,
-    borderRadius: '2px',
-  })
-
-  return (
-    <div ref={wrapRef} style={{ position: 'relative' }}>
-      <input
-        type="text"
-        value={localVal}
-        onChange={e => setLocalVal(e.target.value)}
-        onFocus={e => { e.target.select(); setOpen(true) }}
-        onBlur={handleTextBlur}
-        placeholder="HH:MM"
-        style={{
-          width: '100%', border: 'none', borderBottom: '1px solid #e8e8e8',
-          background: 'transparent', fontFamily: "var(--font-ibm-plex-sans), sans-serif",
-          fontSize: '10pt', color: '#222', outline: 'none', padding: '1px 2px',
-        }}
-      />
-      {open && (
-        <div
-          onMouseDown={e => e.preventDefault()}
-          style={{
-            position: 'absolute', top: 'calc(100% + 2px)', left: 0, zIndex: 200,
-            background: '#fff', border: '1px solid #ddd', borderRadius: '5px',
-            boxShadow: '0 4px 12px rgba(0,0,0,.18)',
-            display: 'flex', overflow: 'hidden', minWidth: '80px',
-          }}
-        >
-          {/* Hours */}
-          <div style={{ width: '40px', height: '120px', overflowY: 'auto', padding: '4px 4px' }}>
-            {Array.from({ length: 24 }, (_, i) => (
-              <div
-                key={i}
-                ref={i === curH ? activeHourRef : undefined}
-                onMouseDown={() => commit(i, curM >= 0 ? curM : 0)}
-                style={cellStyle(i === curH)}
-              >
-                {i.toString().padStart(2, '0')}
-              </div>
-            ))}
-          </div>
-          {/* Divider */}
-          <div style={{ width: '1px', background: '#eee', flexShrink: 0 }} />
-          {/* Minutes */}
-          <div style={{ width: '40px', padding: '4px 4px', display: 'flex', flexDirection: 'column', justifyContent: 'space-around' }}>
-            {[0, 15, 30, 45].map(min => (
-              <div
-                key={min}
-                onMouseDown={() => commit(curH >= 0 ? curH : 0, min)}
-                style={cellStyle(min === curM)}
-              >
-                :{min.toString().padStart(2, '0')}
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-    </div>
-  )
-}
-
-function PlainTextArea({
-  value,
-  onBlur,
-  placeholder,
-  minHeight,
-}: {
-  value: string
-  onBlur: (text: string) => void
-  placeholder?: string
-  minHeight: string
-}) {
-  // Bestehende Werte können HTML-Tags enthalten (von der früheren PlainTextArea) – diese entfernen
-  const stripHtml = (html: string) => html.replace(/<[^>]*>/g, '').replace(/&nbsp;/g, ' ').trim()
-  const ref = useRef<HTMLTextAreaElement>(null)
-
-  const adjust = () => {
-    const el = ref.current
-    if (!el) return
-    el.style.height = 'auto'
-    el.style.height = el.scrollHeight + 'px'
-  }
-
-  useEffect(() => {
-    const el = ref.current
-    if (!el) return
-    // Textarea ist uncontrolled — DOM-Wert nur aktualisieren wenn nicht aktiv bearbeitet
-    if (document.activeElement !== el) {
-      el.value = stripHtml(value)
-    }
-    adjust()
-  }, [value])
-
-  return (
-    <textarea
-      ref={ref}
-      defaultValue={stripHtml(value)}
-      placeholder={placeholder}
-      onInput={adjust}
-      onBlur={e => onBlur(e.target.value)}
-      style={{
-        width: '100%',
-        border: '1px solid #e8e8e8',
-        borderRadius: '3px',
-        background: '#fafafa',
-        fontFamily: "var(--font-ibm-plex-sans), sans-serif",
-        fontSize: '10pt',
-        color: '#222',
-        outline: 'none',
-        padding: '4px 5px',
-        minHeight,
-        boxSizing: 'border-box',
-        whiteSpace: 'pre-wrap',
-        wordBreak: 'break-word',
-        resize: 'none',
-        overflow: 'hidden',
-      }}
-    />
-  )
-}
-
-function ActionChipPopover({ categories, onAdd, onClose, wrapRef }: {
-  categories: string[]
-  onAdd: (cat: string) => void
-  onClose: () => void
-  wrapRef: React.RefObject<HTMLDivElement | null>
-}) {
-  useEffect(() => {
-    const handler = (e: MouseEvent) => {
-      if (wrapRef.current && !wrapRef.current.contains(e.target as Node)) onClose()
-    }
-    document.addEventListener('mousedown', handler)
-    return () => document.removeEventListener('mousedown', handler)
-  }, [onClose, wrapRef])
-
-  const chip: React.CSSProperties = {
-    display: 'inline-flex', alignItems: 'center', padding: '2px 7px',
-    background: '#f0f0f0', border: '1px solid #ddd', borderRadius: '10px',
-    color: '#555', cursor: 'pointer', fontSize: '9pt',
-    fontFamily: "var(--font-ibm-plex-sans), sans-serif",
-  }
-  return (
-    <div style={{
-      position: 'absolute', top: '100%', left: 0, zIndex: 50,
-      background: '#fff', border: '1px solid #ddd', borderRadius: '6px',
-      padding: '5px', display: 'flex', flexWrap: 'wrap', gap: '3px',
-      minWidth: '140px', boxShadow: '0 3px 10px rgba(0,0,0,.15)',
-    }}>
-      {categories.map(cat => (
-        <button key={cat} onClick={() => { onAdd(cat); onClose() }} style={chip}>{cat}</button>
-      ))}
-      <button onClick={() => { onAdd(''); onClose() }} style={{ ...chip, background: 'none', border: '1px dashed #ddd', color: '#888' }}>
-        + Individuell
-      </button>
-    </div>
-  )
-}
-
-function WorkerRow({ worker, onUpdate, onDelete, categories }: {
-  worker: ShiftWorker
-  onUpdate: (id: string, field: string, value: string | number) => void
-  onDelete: () => void
-  categories: string[]
-}) {
-  const [localBeruf, setLocalBeruf] = useState<string | null>(null)
-  const [localAnz, setLocalAnz] = useState<string | null>(null)
-  const [localStd, setLocalStd] = useState<string | null>(null)
-  const [showChips, setShowChips] = useState(false)
-  const wrapRef = useRef<HTMLDivElement>(null)
-  const tdInp: React.CSSProperties = {
-    width: '100%', border: 'none', background: 'transparent',
-    fontFamily: "var(--font-ibm-plex-sans), sans-serif", fontSize: '10pt', color: '#222',
-    outline: 'none', padding: '1px 2px', borderBottom: '1px dashed #ddd',
-  }
-  return (
-    <tr>
-      <td data-no-print="true" style={{ padding: '2px 3px', borderBottom: '1px solid #eee', width: '22px', position: 'relative' }}>
-        <div ref={wrapRef} style={{ position: 'relative' }}>
-          <button onClick={() => setShowChips(v => !v)} className="circle-btn-grey" style={{
-            borderRadius: '50%', cursor: 'pointer',
-            fontSize: '14px', width: '16px', height: '16px',
-            display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0,
-          }}>+</button>
-          {showChips && <ActionChipPopover categories={categories} onAdd={(cat) => { onUpdate(worker.id, 'beruf', cat); setLocalBeruf(null) }} onClose={() => setShowChips(false)} wrapRef={wrapRef} />}
-        </div>
-      </td>
-      <td style={{ padding: '2px 5px', borderBottom: '1px solid #eee' }}>
-        <input type="text" value={localBeruf ?? worker.beruf} onChange={e => setLocalBeruf(e.target.value)}
-          onBlur={() => { if (localBeruf !== null) { onUpdate(worker.id, 'beruf', localBeruf); setLocalBeruf(null) } }}
-          placeholder="Beruf / Name..." style={tdInp} />
-      </td>
-      <td style={{ padding: '2px 5px', borderBottom: '1px solid #eee', width: '42px' }}>
-        <input type="number" value={localAnz ?? worker.anz.toString()} onChange={e => setLocalAnz(e.target.value)}
-          onBlur={() => { if (localAnz !== null) { const v = parseInt(localAnz, 10); onUpdate(worker.id, 'anz', isNaN(v) ? 1 : v); setLocalAnz(null) } }}
-          style={{ ...tdInp, width: '38px' }} />
-      </td>
-      <td style={{ padding: '2px 5px', borderBottom: '1px solid #eee', width: '50px' }}>
-        <input type="number" step="0.5" value={localStd ?? worker.std.toString()} onChange={e => setLocalStd(e.target.value)}
-          onBlur={() => { if (localStd !== null) { const v = parseFloat(localStd); onUpdate(worker.id, 'std', isNaN(v) ? 0 : v); setLocalStd(null) } }}
-          style={{ ...tdInp, width: '46px' }} />
-      </td>
-      <td data-no-print="true" style={{ padding: '2px 3px', borderBottom: '1px solid #eee', width: '20px' }}>
-        <button onClick={onDelete} className="circle-btn-red" style={{ borderRadius: '50%', cursor: 'pointer', fontSize: '13px', width: '16px', height: '16px', padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>×</button>
-      </td>
-    </tr>
-  )
-}
-
-function EquipmentRow({ equipment, onUpdate, onDelete, categories }: {
-  equipment: ShiftEquipment
-  onUpdate: (id: string, field: string, value: string | number) => void
-  onDelete: () => void
-  categories: string[]
-}) {
-  const [localTyp, setLocalTyp] = useState<string | null>(null)
-  const [localAnz, setLocalAnz] = useState<string | null>(null)
-  const [localStd, setLocalStd] = useState<string | null>(null)
-  const [showChips, setShowChips] = useState(false)
-  const wrapRef = useRef<HTMLDivElement>(null)
-  const tdInp: React.CSSProperties = {
-    width: '100%', border: 'none', background: 'transparent',
-    fontFamily: "var(--font-ibm-plex-sans), sans-serif", fontSize: '10pt', color: '#222',
-    outline: 'none', padding: '1px 2px', borderBottom: '1px dashed #ddd',
-  }
-  return (
-    <tr>
-      <td data-no-print="true" style={{ padding: '2px 3px', borderBottom: '1px solid #eee', width: '22px', position: 'relative' }}>
-        <div ref={wrapRef} style={{ position: 'relative' }}>
-          <button onClick={() => setShowChips(v => !v)} className="circle-btn-grey" style={{
-            borderRadius: '50%', cursor: 'pointer',
-            fontSize: '14px', width: '16px', height: '16px',
-            display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0,
-          }}>+</button>
-          {showChips && <ActionChipPopover categories={categories} onAdd={(cat) => { onUpdate(equipment.id, 'typ', cat); setLocalTyp(null) }} onClose={() => setShowChips(false)} wrapRef={wrapRef} />}
-        </div>
-      </td>
-      <td style={{ padding: '2px 5px', borderBottom: '1px solid #eee' }}>
-        <input type="text" value={localTyp ?? equipment.typ} onChange={e => setLocalTyp(e.target.value)}
-          onBlur={() => { if (localTyp !== null) { onUpdate(equipment.id, 'typ', localTyp); setLocalTyp(null) } }}
-          placeholder="Gerät..." style={tdInp} />
-      </td>
-      <td style={{ padding: '2px 5px', borderBottom: '1px solid #eee', width: '42px' }}>
-        <input type="number" value={localAnz ?? equipment.anz.toString()} onChange={e => setLocalAnz(e.target.value)}
-          onBlur={() => { if (localAnz !== null) { const v = parseInt(localAnz, 10); onUpdate(equipment.id, 'anz', isNaN(v) ? 1 : v); setLocalAnz(null) } }}
-          style={{ ...tdInp, width: '38px' }} />
-      </td>
-      <td style={{ padding: '2px 5px', borderBottom: '1px solid #eee', width: '50px' }}>
-        <input type="number" step="0.5" value={localStd ?? equipment.std.toString()} onChange={e => setLocalStd(e.target.value)}
-          onBlur={() => { if (localStd !== null) { const v = parseFloat(localStd); onUpdate(equipment.id, 'std', isNaN(v) ? 0 : v); setLocalStd(null) } }}
-          style={{ ...tdInp, width: '46px' }} />
-      </td>
-      <td data-no-print="true" style={{ padding: '2px 3px', borderBottom: '1px solid #eee', width: '20px' }}>
-        <button onClick={onDelete} className="circle-btn-red" style={{ borderRadius: '50%', cursor: 'pointer', fontSize: '13px', width: '16px', height: '16px', padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>×</button>
-      </td>
-    </tr>
-  )
-}
+import { TimeInput } from './time-input'
+import { PlainTextArea } from './plain-text-area'
+import { WorkerRow } from './worker-row'
+import { EquipmentRow } from './equipment-row'
 
 interface ShiftCardProps {
   shift: ShiftWithDetails
@@ -355,8 +40,6 @@ export function ShiftCard({
 }: ShiftCardProps) {
   const [localValues, setLocalValues] = useState<Record<string, string>>({})
   const [weatherLoading, setWeatherLoading] = useState(false)
-  // Persistent: true wenn beim Mount bereits temp+wit gesetzt (= wurden per "Laden" geladen),
-  // oder wenn der Nutzer in dieser Session auf "Laden" geklickt hat.
   const [weatherLoaded, setWeatherLoaded] = useState(() => shift.temp != null && shift.wit != null)
   const weatherFetchedRef = useRef(false)
 
@@ -389,7 +72,6 @@ export function ShiftCard({
     }
   }
 
-  // Auto-Fetch beim ersten Rendern wenn Datum heute/Vergangenheit, Felder leer und Standort bekannt
   useEffect(() => {
     if (!weatherFetchedRef.current && !isFuture && weatherLocation && shift.temp == null && shift.wit == null) {
       weatherFetchedRef.current = true
@@ -431,14 +113,11 @@ export function ShiftCard({
   const pauVal = 'pau' in localValues ? (localValues['pau'] ? parseFloat(localValues['pau']) : null) : shift.pau
   const netHours = calculateNetHours(get('beg', shift.beg) || null, get('end', shift.end) || null, pauVal)
 
-  // val is passed directly — avoids stale-closure reads of localValues in setTimeout
   const handleTimeBlur = (field: 'beg' | 'end' | 'pau', val: string) => {
-    // Compute net hours with the new value + current shift props for other fields
     const updBeg = field === 'beg' ? (val || null) : (shift.beg || null)
     const updEnd = field === 'end' ? (val || null) : (shift.end || null)
     const updPau = field === 'pau' ? (val === '' ? null : parseFloat(val)) : (shift.pau ?? null)
     const newNet = calculateNetHours(updBeg, updEnd, updPau)
-    // Save to DB
     if (field === 'pau') {
       const num = val === '' ? null : parseFloat(val)
       onUpdateShift(shift.id, field, num !== null && !isNaN(num) ? num : null)
@@ -446,7 +125,6 @@ export function ShiftCard({
       onUpdateShift(shift.id, field, val === '' ? null : val)
     }
     setLocalValues(prev => { const n = { ...prev }; delete n[field]; return n })
-    // Sync workers and equipment to new net hours
     if (newNet > 0) {
       shift.shift_workers.forEach(w => onUpdateWorker(w.id, 'std', newNet))
       shift.shift_equipment.forEach(eq => onUpdateEquipment(eq.id, 'std', newNet))
@@ -517,11 +195,11 @@ export function ShiftCard({
           <div style={sectionStyle}>
             <div style={sectionTitleStyle}>Projekt</div>
             <div style={{ marginBottom: '3px' }}><label style={labelStyle}>Name</label>
-              <div style={{ fontSize: '10pt', fontWeight: 600, padding: '1px 2px' }}>{project?.name || '\u2014'}</div></div>
+              <div style={{ fontSize: '10pt', fontWeight: 600, padding: '1px 2px' }}>{project?.name || '—'}</div></div>
             <div style={{ marginBottom: '3px' }}><label style={labelStyle}>Kostenstelle</label>
-              <div style={{ fontSize: '10pt', padding: '1px 2px' }}>{project?.nr || '\u2014'}</div></div>
+              <div style={{ fontSize: '10pt', padding: '1px 2px' }}>{project?.nr || '—'}</div></div>
             <div><label style={labelStyle}>Auftraggeber</label>
-              <div style={{ fontSize: '10pt', padding: '1px 2px' }}>{project?.ag || '\u2014'}</div></div>
+              <div style={{ fontSize: '10pt', padding: '1px 2px' }}>{project?.ag || '—'}</div></div>
           </div>
           <div style={sectionStyle}>
             <div style={sectionTitleStyle}>Wetter</div>
@@ -618,7 +296,7 @@ export function ShiftCard({
 
         <div style={{ height: '2.5em', flexShrink: 0 }} />
 
-        {/* Oertlichkeit */}
+        {/* Örtlichkeit */}
         <div style={{ ...sectionStyle, display: 'flex', alignItems: 'baseline', gap: '4px', borderBottom: '2px solid #1a2040', paddingBottom: '2px' }}>
           <span style={{ ...sectionTitleStyle, borderBottom: 'none', paddingBottom: 0, marginBottom: 0, whiteSpace: 'nowrap', flexShrink: 0, color: '#1a2040' }}>Örtlichkeit:</span>
           <input type="text" value={get('gl', shift.gl)} onChange={e => handleChange('gl', e.target.value)} onBlur={() => handleBlur('gl')} placeholder="Strecke / Gleis / Bauteil…" style={{ ...inputStyle, borderBottom: 'none', flex: 1 }} />
@@ -630,7 +308,7 @@ export function ShiftCard({
 
         <div style={{ height: '0.5em', flexShrink: 0 }} />
 
-        {/* 2-col: Mitarbeiter + Geraete */}
+        {/* Personal & Geräte */}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '7px', flexShrink: 0 }}>
           <div style={sectionStyle}>
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '10pt' }}>
@@ -643,8 +321,7 @@ export function ShiftCard({
               </tr></thead>
               <tbody>
                 {shift.shift_workers.map(w => (
-                  <WorkerRow key={w.id} worker={w} onUpdate={onUpdateWorker} onDelete={() => onDeleteWorker(w.id)}
-                    categories={workerCats} />
+                  <WorkerRow key={w.id} worker={w} onUpdate={onUpdateWorker} onDelete={() => onDeleteWorker(w.id)} categories={workerCats} />
                 ))}
               </tbody>
               <tfoot data-no-print="true">
@@ -670,8 +347,7 @@ export function ShiftCard({
               </tr></thead>
               <tbody>
                 {shift.shift_equipment.map(eq => (
-                  <EquipmentRow key={eq.id} equipment={eq} onUpdate={onUpdateEquipment} onDelete={() => onDeleteEquipment(eq.id)}
-                    categories={equipCats} />
+                  <EquipmentRow key={eq.id} equipment={eq} onUpdate={onUpdateEquipment} onDelete={() => onDeleteEquipment(eq.id)} categories={equipCats} />
                 ))}
               </tbody>
               <tfoot data-no-print="true">
@@ -690,7 +366,7 @@ export function ShiftCard({
 
         <div style={{ height: '1.2em', flexShrink: 0 }} />
 
-        {/* Ausgefuehrte Arbeiten */}
+        {/* Ausgeführte Arbeiten */}
         <div style={{ ...sectionStyle, flexShrink: 0 }}>
           <div style={sectionTitleStyle}>Ausgeführte Arbeiten</div>
           <div style={{ position: 'relative' }}>
@@ -706,7 +382,7 @@ export function ShiftCard({
           <PlainTextArea value={shift.vor || ''} onBlur={html => onUpdateShift(shift.id, 'vor', html)} placeholder="/" minHeight="44px" />
         </div>
 
-        {/* Signature line (absolute bottom) */}
+        {/* Unterschriftenzeile */}
         <div style={{
           position: 'absolute', bottom: '7mm', left: '9mm', right: '9mm',
           display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '30px', background: '#fff',

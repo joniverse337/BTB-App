@@ -15,7 +15,9 @@ function buildCSP(nonce: string): string {
     // 'nonce-...' erlaubt explizit markierte Inline-Scripts
     // 'strict-dynamic' vertraut allen Scripts, die von einem Nonce-Script geladen werden
     // 'unsafe-inline' ist Fallback für ältere Browser (wird von strict-dynamic ignoriert)
-    `script-src 'nonce-${nonce}' 'strict-dynamic' 'self' 'unsafe-inline'`,
+    process.env.NODE_ENV === 'production'
+      ? `script-src 'nonce-${nonce}' 'strict-dynamic' 'self'`
+      : `script-src 'nonce-${nonce}' 'strict-dynamic' 'self' 'unsafe-inline'`,
     // Styles: Nonce für Inline-Styles + Google Fonts
     `style-src-elem 'self' 'nonce-${nonce}' 'unsafe-inline' https://fonts.googleapis.com`,
     "style-src-attr 'unsafe-inline'",

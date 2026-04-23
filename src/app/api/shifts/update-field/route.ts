@@ -48,10 +48,18 @@ export const POST = createAuthenticatedRoute(async (request, { user, supabase })
 
   if (syncStdValue !== undefined && syncStdValue > 0) {
     if (syncStdWorkerIds && syncStdWorkerIds.length > 0) {
-      await supabase.from('shift_workers').update({ std: syncStdValue }).in('id', syncStdWorkerIds)
+      const { error: workerSyncError } = await supabase.from('shift_workers').update({ std: syncStdValue }).in('id', syncStdWorkerIds)
+      if (workerSyncError) {
+        logger.error('shifts.updateField.syncWorkers', `code=${workerSyncError.code} msg=${workerSyncError.message}`)
+        return NextResponse.json({ error: 'Std-Sync fehlgeschlagen.' }, { status: 500 })
+      }
     }
     if (syncStdEquipmentIds && syncStdEquipmentIds.length > 0) {
-      await supabase.from('shift_equipment').update({ std: syncStdValue }).in('id', syncStdEquipmentIds)
+      const { error: equipmentSyncError } = await supabase.from('shift_equipment').update({ std: syncStdValue }).in('id', syncStdEquipmentIds)
+      if (equipmentSyncError) {
+        logger.error('shifts.updateField.syncEquipment', `code=${equipmentSyncError.code} msg=${equipmentSyncError.message}`)
+        return NextResponse.json({ error: 'Std-Sync fehlgeschlagen.' }, { status: 500 })
+      }
     }
   }
 

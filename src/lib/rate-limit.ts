@@ -9,6 +9,7 @@ import { RATE_LIMIT } from '@/lib/constants'
 const hasRedis =
   process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN
 
+
 const redis = hasRedis
   ? new Redis({
       url: process.env.UPSTASH_REDIS_REST_URL!,

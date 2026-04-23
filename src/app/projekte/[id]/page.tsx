@@ -23,8 +23,6 @@ import { ZOOM_STORAGE_KEY, ZOOM_DEFAULT, ZOOM_MIN, ZOOM_MAX } from '@/lib/consta
 import { useProjectQuery } from '@/hooks/queries/use-project-query'
 import { useProjectSettingsQuery } from '@/hooks/queries/use-project-settings-query'
 import { useShiftsQuery } from '@/hooks/queries/use-shifts-query'
-import { useStorageLocationsQuery } from '@/hooks/queries/use-storage-locations-query'
-import { useEquipmentQuery } from '@/hooks/queries/use-equipment-query'
 import { queryKeys } from '@/lib/query-keys'
 
 const SHIFT_ALLOWED_FIELDS = new Set(['temp', 'wit', 'bod', 'beg', 'end', 'pau', 'gl', 'kv', 'kb', 'arb', 'vor'])
@@ -213,9 +211,6 @@ export default function ProjectDetailPage() {
   const { data: projectBase, isLoading: isLoadingProject } = useProjectQuery(projectId)
   const { data: settings } = useProjectSettingsQuery(projectId)
   const { data: allShifts = [], isLoading: isLoadingShifts } = useShiftsQuery(projectId)
-  const { data: storageLocations = [] } = useStorageLocationsQuery(projectId)
-  const { data: equipmentItems = [] } = useEquipmentQuery(projectId)
-
   // Projekt mit Settings-Overrides (firma/adr aus project_settings haben Vorrang)
   const project = useMemo((): Project | null => {
     if (!projectBase) return null
@@ -228,30 +223,8 @@ export default function ProjectDetailPage() {
 
   const projectLogo = settings?.logo ?? null
 
-  // Wetter-Standort aus erstem Lagerplatz (PROJ-10)
-  const weatherLocation = useMemo(() => {
-    const first = storageLocations[0]
-    if (!first) return null
-    if (first.map_center_lat != null && first.map_center_lng != null) {
-      return { lat: first.map_center_lat, lon: first.map_center_lng }
-    }
-    const parts = [first.address_street, first.address_number, first.address_zip, first.address_city]
-      .filter(Boolean).join(' ')
-    const addr = parts || first.address || first.name
-    return addr ? { address: addr } : null
-  }, [storageLocations])
-
-  // Kategorien: aus Settings + baustelle-Geräten zusammengeführt (PROJ-9)
-  const baustelleNames = useMemo(
-    () => equipmentItems.filter(e => e.status === 'baustelle').map(e => e.name).filter((n): n is string => !!n),
-    [equipmentItems]
-  )
   const workerCategories = settings?.workerCategories
-  const equipmentCategories = useMemo(() => {
-    const cats = settings?.equipmentCategories ?? []
-    const merged = [...new Set([...cats, ...baustelleNames])]
-    return merged.length > 0 ? merged : (baustelleNames.length > 0 ? baustelleNames : undefined)
-  }, [settings?.equipmentCategories, baustelleNames])
+  const equipmentCategories = settings?.equipmentCategories
 
   // ── UI State ──────────────────────────────────────────────────
   const [weeks, setWeeks] = useState<KWInfo[]>([])
@@ -817,7 +790,7 @@ ${pages}
               zoom={zoom}
               project={project}
               logo={projectLogo}
-              weatherLocation={weatherLocation}
+              weatherLocation={null}
               workerCategories={workerCategories}
               equipmentCategories={equipmentCategories}
               onCreateShift={handleCreateShift}

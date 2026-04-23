@@ -136,7 +136,6 @@ export default function ProjectSettingsPage() {
   })
   const [categories, setCategories] = useState<ProjectCategory[]>([])
   const [contacts, setContacts] = useState<ProjectContact[]>([])
-  const [baustelleItems, setBaustelleItems] = useState<string[]>([])
   const [companyFallback, setCompanyFallback] = useState<{ firma: string | null; adr: string | null; logoUrl: string | null } | undefined>(undefined)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -213,10 +212,6 @@ export default function ProjectSettingsPage() {
             aa_logo_x: null,
             aa_logo_y: null,
             aa_logo_size: null,
-            equipment_bedarf_contacts: null,
-            equipment_baustelle_contacts: null,
-            equipment_frei_contacts: null,
-            print_lagerplaetze_with_geraete: false,
           }
           const { data: created } = await supabase
             .from('project_settings')
@@ -231,18 +226,12 @@ export default function ProjectSettingsPage() {
           }
         }
 
-        // Fetch categories + Baustelle-Geräte + contacts parallel
-        const [{ data: catData }, { data: baustelleData }, { data: contactData }] = await Promise.all([
+        // Fetch categories + contacts parallel
+        const [{ data: catData }, { data: contactData }] = await Promise.all([
           supabase
             .from('project_categories')
             .select('*')
             .eq('project_id', projectId)
-            .order('sort_order', { ascending: true }),
-          supabase
-            .from('equipment_items')
-            .select('name')
-            .eq('project_id', projectId)
-            .eq('status', 'baustelle')
             .order('sort_order', { ascending: true }),
           supabase
             .from('project_contacts')
@@ -254,11 +243,6 @@ export default function ProjectSettingsPage() {
         setContacts((contactData as ProjectContact[]) ?? [])
 
         const existingCats = (catData as ProjectCategory[]) ?? []
-        setBaustelleItems(
-          (baustelleData ?? [])
-            .map((e: { name: string | null }) => e.name)
-            .filter((n): n is string => !!n)
-        )
 
         // Seed Personal-Presets wenn noch keine vorhanden (guard against StrictMode double-invoke)
         const needsPersonal = !existingCats.some((c) => c.typ === 'personal')
@@ -497,7 +481,7 @@ export default function ProjectSettingsPage() {
                   categories={categories}
                   onAdd={handleAddCategory}
                   onDelete={handleDeleteCategory}
-                  baustelleItems={baustelleItems}
+
                 />
               </div>
             </SettingsSection>

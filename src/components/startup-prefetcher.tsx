@@ -5,8 +5,6 @@ import { useQueryClient } from '@tanstack/react-query'
 import { format, subWeeks, getISOWeek, getISOWeekYear } from 'date-fns'
 import { createClient } from '@/lib/supabase'
 import { fetchProjects, fetchShiftsWithDetails, fetchProjectSettingsWithFallback } from '@/lib/services/project-service'
-import { fetchEquipmentItems } from '@/lib/services/equipment-service'
-import { fetchStorageLocations } from '@/lib/services/storage-location-service'
 import { queryKeys } from '@/lib/query-keys'
 import type { Project } from '@/lib/validations/project'
 
@@ -32,16 +30,6 @@ export function StartupPrefetcher() {
         queryClient.prefetchQuery({
           queryKey: queryKeys.shifts(projectId),
           queryFn: () => fetchShiftsWithDetails(projectId, since),
-          staleTime: 5 * 60 * 1000,
-        }),
-        queryClient.prefetchQuery({
-          queryKey: queryKeys.storageLocations(projectId),
-          queryFn: () => fetchStorageLocations(projectId),
-          staleTime: 5 * 60 * 1000,
-        }),
-        queryClient.prefetchQuery({
-          queryKey: queryKeys.equipment(projectId),
-          queryFn: () => fetchEquipmentItems(projectId),
           staleTime: 5 * 60 * 1000,
         }),
         queryClient.prefetchQuery({

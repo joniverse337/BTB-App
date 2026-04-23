@@ -22,8 +22,8 @@
 | PROJ-6 | Projekteinstellungen & BTB-Vorlage | Deployed | [PROJ-6-projekteinstellungen.md](PROJ-6-projekteinstellungen.md) | 2026-03-20 |
 | PROJ-7 | Arbeitsanmeldung (KW-basiert) | Deployed | [PROJ-7-arbeitsanmeldung.md](PROJ-7-arbeitsanmeldung.md) | 2026-03-29 |
 | PROJ-8 | PaperEngine | In Progress | [PROJ-8-paper-engine.md](PROJ-8-paper-engine.md) | 2026-04-03 |
-| PROJ-9 | Gerätebedarf | Deployed | [PROJ-9-geraete-liste.md](PROJ-9-geraete-liste.md) | 2026-04-08 |
-| PROJ-10 | Lagerplätze | In Review | [PROJ-10-lagerplaetze.md](PROJ-10-lagerplaetze.md) | 2026-04-10 |
+| PROJ-9 | Gerätebedarf | Deprecated | [PROJ-9-geraete-liste.md](PROJ-9-geraete-liste.md) | 2026-04-08 |
+| PROJ-10 | Lagerplätze | Deprecated | [PROJ-10-lagerplaetze.md](PROJ-10-lagerplaetze.md) | 2026-04-10 |
 | PROJ-11 | BTB-Volltextsuche | In Review | [PROJ-11-volltextsuche.md](PROJ-11-volltextsuche.md) | 2026-04-11 |
 | PROJ-12 | Projekt-Gasteinladungen | Planned | [PROJ-12-gasteinladungen.md](PROJ-12-gasteinladungen.md) | 2026-04-11 |
 

@@ -47,10 +47,8 @@ export function ProjectDetailHeader({ project, isLoading }: ProjectDetailHeaderP
   const pathname = usePathname()
   const searchParams = useSearchParams()
   const isOnAA = pathname?.includes('/arbeitsanmeldung')
-  const isOnGeraete = pathname?.includes('/geraete')
-  const isOnLagerplaetze = pathname?.includes('/lagerplaetze')
   const isOnSettings = pathname?.includes('/einstellungen')
-  const isOnBTB = !isOnAA && !isOnGeraete && !isOnLagerplaetze && !isOnSettings
+  const isOnBTB = !isOnAA && !isOnSettings
   const kwSuffix = searchParams.get('kw') ? `?kw=${searchParams.get('kw')}` : ''
 
   const [hovered, setHovered] = useState<string | null>(null)
@@ -58,9 +56,7 @@ export function ProjectDetailHeader({ project, isLoading }: ProjectDetailHeaderP
   // When hovering an inactive tab, dim the active one
   const anyInactiveHovered = hovered !== null && (
     (hovered === 'btb' && !isOnBTB) ||
-    (hovered === 'aa' && !isOnAA) ||
-    (hovered === 'geraete' && !isOnGeraete) ||
-    (hovered === 'lagerplaetze' && !isOnLagerplaetze)
+    (hovered === 'aa' && !isOnAA)
   )
 
   return (
@@ -110,27 +106,9 @@ export function ProjectDetailHeader({ project, isLoading }: ProjectDetailHeaderP
               >
                 Arbeitsanmeldung
               </NavTab>
-              <NavTab
-                href={`/projekte/${project.id}/geraete`}
-                active={isOnGeraete}
-                dimmed={isOnGeraete ? anyInactiveHovered : hovered !== 'geraete'}
-                onMouseEnter={() => setHovered('geraete')}
-                onMouseLeave={() => setHovered(null)}
-              >
-                Gerätebedarf
-              </NavTab>
-              <NavTab
-                href={`/projekte/${project.id}/lagerplaetze`}
-                active={isOnLagerplaetze}
-                dimmed={isOnLagerplaetze ? anyInactiveHovered : hovered !== 'lagerplaetze'}
-                onMouseEnter={() => setHovered('lagerplaetze')}
-                onMouseLeave={() => setHovered(null)}
-              >
-                Lagerplätze
-              </NavTab>
             </div>
             <Link
-              href={`/projekte/${project.id}/einstellungen?from=${isOnAA ? 'arbeitsanmeldung' : isOnGeraete ? 'geraete' : isOnLagerplaetze ? 'lagerplaetze' : 'btb'}${kwSuffix ? '&' + kwSuffix.slice(1) : ''}`}
+              href={`/projekte/${project.id}/einstellungen?from=${isOnAA ? 'arbeitsanmeldung' : 'btb'}${kwSuffix ? '&' + kwSuffix.slice(1) : ''}`}
               className={`flex items-center justify-center w-8 h-8 rounded-md transition-colors shrink-0 ${isOnSettings ? 'text-[#e8c547]' : 'text-[#8a90a8] hover:text-[#e8c547]'}`}
               aria-label="Projekteinstellungen"
               title="Projekteinstellungen"

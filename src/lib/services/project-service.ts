@@ -94,7 +94,6 @@ export async function fetchProjectSettingsWithFallback(projectId: string): Promi
   aaLogo: { url: string; x: number; y: number; size: number } | null
   workerCategories: string[] | undefined
   equipmentCategories: string[] | undefined
-  printLagerplaetzeWithGeraete: boolean
 }> {
   const supabase = createClient()
 
@@ -120,7 +119,7 @@ export async function fetchProjectSettingsWithFallback(projectId: string): Promi
   // Fetch project_settings
   const { data: settingsData } = await supabase
     .from('project_settings')
-    .select('firma, adr, logo_url, logo_x, logo_y, logo_size, aa_logo_x, aa_logo_y, aa_logo_size, print_lagerplaetze_with_geraete')
+    .select('firma, adr, logo_url, logo_x, logo_y, logo_size, aa_logo_x, aa_logo_y, aa_logo_size')
     .eq('project_id', projectId)
     .single()
 
@@ -190,8 +189,6 @@ export async function fetchProjectSettingsWithFallback(projectId: string): Promi
     }
   }
 
-  const printLagerplaetzeWithGeraete = settingsData?.print_lagerplaetze_with_geraete === true
-
   // AA-Logo: uses aa_logo_x/y/size with fallback to regular logo positioning
   let aaLogo: { url: string; x: number; y: number; size: number } | null = null
   if (settingsData?.logo_url) {
@@ -210,5 +207,5 @@ export async function fetchProjectSettingsWithFallback(projectId: string): Promi
     }
   }
 
-  return { firma, adr, logo, aaLogo, workerCategories, equipmentCategories, printLagerplaetzeWithGeraete }
+  return { firma, adr, logo, aaLogo, workerCategories, equipmentCategories }
 }

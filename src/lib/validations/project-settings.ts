@@ -9,10 +9,6 @@ export interface ProjectSettings {
   aa_logo_x: number | null
   aa_logo_y: number | null
   aa_logo_size: number | null
-  equipment_bedarf_contacts: string | null
-  equipment_baustelle_contacts: string | null
-  equipment_frei_contacts: string | null
-  print_lagerplaetze_with_geraete: boolean
 }
 
 export interface ProjectCategory {
@@ -33,10 +29,6 @@ export const DEFAULT_PROJECT_SETTINGS: Omit<ProjectSettings, 'project_id'> = {
   aa_logo_x: null,
   aa_logo_y: null,
   aa_logo_size: null,
-  equipment_bedarf_contacts: null,
-  equipment_baustelle_contacts: null,
-  equipment_frei_contacts: null,
-  print_lagerplaetze_with_geraete: false,
 }
 
 export interface ProjectContact {
